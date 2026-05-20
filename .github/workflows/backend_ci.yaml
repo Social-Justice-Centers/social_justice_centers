@@ -1,0 +1,47 @@
+# .github/workflows/backend-ci.yml
+
+name: Go Backend CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'backend/**' # מפעיל רק כשמשתנה קוד בתיקיית הבקאנד
+  pull_request:
+    branches: [ main, master, develop ]
+    paths:
+      - 'backend/**'
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend # מניח שהקוד של Go נמצא בתיקיית 'backend'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22' # שנה לגרסה הרלוונטית שלך
+
+      # 1. בדיקת תלות (Dependencies)
+      - name: Download Go modules
+        run: go mod download
+
+      # 2. הרצה של בדיקות יחידה ואינטגרציה
+      - name: Run Tests
+        run: go test ./... -v
+
+      # 3. בדיקת Linting (אם מותקן גוף חיצוני)
+      # - name: Run golangci-lint
+      #   uses: reviewdog/action-golangci-lint@v2
+      #   with:
+      #     golangci_lint_flags: "--enable-all"
+
+      # 4. בנייה (Build)
+      - name: Build
+        run: go build -v ./...
