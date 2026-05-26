@@ -22,9 +22,19 @@ type ShiftStore interface {
 	Update(shift *models.Shift) error
 }
 
+// DrivingReportStore defines all database operations for DrivingReports.
+type DrivingReportStore interface {
+	Create(report *models.DrivingReport) error
+	GetByID(id uint) (*models.DrivingReport, error)
+	GetByUserPhone(phone string) ([]models.DrivingReport, error)
+	GetByUserPhones(phones []string) ([]models.DrivingReport, error)
+	Approve(id uint, managerPhone string) error
+}
+
 // Registry is the central interface combining all stores.
 // Swap the underlying implementation without changing business logic.
 type Registry interface {
 	Users() UserStore
 	Shifts() ShiftStore
+	DrivingReports() DrivingReportStore
 }
