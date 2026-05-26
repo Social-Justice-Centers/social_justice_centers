@@ -17,8 +17,9 @@ func NewSQLiteRegistry(db *gorm.DB) domain.Registry {
 	return &sqliteRegistry{db: db}
 }
 
-func (r *sqliteRegistry) Users() domain.UserStore  { return &userStore{db: r.db} }
-func (r *sqliteRegistry) Shifts() domain.ShiftStore { return &shiftStore{db: r.db} }
+func (r *sqliteRegistry) Users() domain.UserStore                  { return &userStore{db: r.db} }
+func (r *sqliteRegistry) Shifts() domain.ShiftStore                { return &shiftStore{db: r.db} }
+func (r *sqliteRegistry) DrivingReports() domain.DrivingReportStore { return &drivingReportStore{db: r.db} }
 
 // --- User Store Implementation ---
 
@@ -84,4 +85,40 @@ func (s *shiftStore) GetActiveShift(phone string) (*models.Shift, error) {
 
 func (s *shiftStore) Update(shift *models.Shift) error {
 	return s.db.Save(shift).Error
+}
+
+// --- Driving Report Store Implementation ---
+
+type drivingReportStore struct{ db *gorm.DB }
+
+func (s *drivingReportStore) Create(report *models.DrivingReport) error {
+	return s.db.Create(report).Error
+}
+
+func (s *drivingReportStore) GetByID(id uint) (*models.DrivingReport, error) {
+	var r models.DrivingReport
+	err := s.db.First(&r, id).Error
+	return &r, err
+}
+
+func (s *drivingReportStore) GetByUserPhone(phone string) ([]models.DrivingReport, error) {
+	var reports []models.DrivingReport
+	err := s.db.Where("user_phone = ?", phone).Order("created_at desc").Find(&reports).Error
+	return reports, err
+}
+
+func (s *drivingReportStore) GetByUserPhones(phones []string) ([]models.DrivingReport, error) {
+	if len(phones) == 0 {
+		return []models.DrivingReport{}, nil
+	}
+	var reports []models.DrivingReport
+	err := s.db.Where("user_phone IN ?", phones).Order("created_at desc").Find(&reports).Error
+	return reports, err
+}
+
+func (s *drivingReportStore) Approve(id uint, managerPhone string) error {
+	return s.db.Model(&models.DrivingReport{}).Where("id = ?", id).Updates(map[string]interface{}{
+		"approved":    true,
+		"approved_by": managerPhone,
+	}).Error
 }
