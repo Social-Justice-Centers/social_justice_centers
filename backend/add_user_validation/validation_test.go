@@ -20,7 +20,7 @@ type MockRegistry struct {
 
 func (m *MockRegistry) Users() domain.UserStore  { return m.MockUserStore }
 func (m *MockRegistry) Shifts() domain.ShiftStore { return nil }
-
+func (m *MockRegistry) DrivingReports() domain.DrivingReportStore { return nil }
 // MockUserStore implements domain.UserStore using an in-memory map keyed by phone.
 type MockUserStore struct {
 	users map[string]*models.User
