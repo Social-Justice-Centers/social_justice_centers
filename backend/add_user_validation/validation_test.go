@@ -177,7 +177,7 @@ func TestAddUserValidation(t *testing.T) {
 			result := AddUserValidation(c, tt.inputUser, mockStore)
 
 			if result != tt.expectedResult {
-				t.Errorf("expected return %v, got %v", tt.expectedResult, result)
+				t.Errorf("expected return %v, got %v. Error from server: %s", tt.expectedResult, result, w.Body.String())
 			}
 
 			if !tt.expectedResult {
