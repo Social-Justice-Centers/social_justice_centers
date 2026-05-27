@@ -18,9 +18,10 @@ type MockRegistry struct {
 	MockUserStore *MockUserStore
 }
 
-func (m *MockRegistry) Users() domain.UserStore  { return m.MockUserStore }
-func (m *MockRegistry) Shifts() domain.ShiftStore { return nil }
+func (m *MockRegistry) Users() domain.UserStore                   { return m.MockUserStore }
+func (m *MockRegistry) Shifts() domain.ShiftStore                 { return nil }
 func (m *MockRegistry) DrivingReports() domain.DrivingReportStore { return nil }
+
 // MockUserStore implements domain.UserStore using an in-memory map keyed by phone.
 type MockUserStore struct {
 	users map[string]*models.User
@@ -39,9 +40,9 @@ func (m *MockUserStore) GetByPhone(phone string) (*models.User, error) {
 }
 
 // Unused by validation, required to satisfy the interface
-func (m *MockUserStore) Create(user *models.User) error                           { return nil }
-func (m *MockUserStore) GetAll() ([]models.User, error)                           { return nil, nil }
-func (m *MockUserStore) GetByDirectManager(p string) ([]models.User, error)       { return nil, nil }
+func (m *MockUserStore) Create(user *models.User) error                               { return nil }
+func (m *MockUserStore) GetAll() ([]models.User, error)                               { return nil, nil }
+func (m *MockUserStore) GetByDirectManager(p string) ([]models.User, error)           { return nil, nil }
 
 // --- Tests ---
 
@@ -59,11 +60,13 @@ func TestAddUserValidation(t *testing.T) {
 		{
 			name: "Success - Valid New User",
 			inputUser: &models.User{
-				FullName: "יואב פוקס",
-				Username: "יואב פוקס",
-				Password: "secret123",
-				Phone:    "0501234567",
-				Role:     models.RoleEmployee,
+				FullName:  "יואב פוקס",
+				Username:  "יואב פוקס",
+				Password:  "secret123",
+				Phone:     "0501234567",
+				Email:     "test@example.com",
+				Role:      models.RoleEmployee,
+				IsFlexibleModel: true,
 			},
 			existingUsers:  map[string]*models.User{},
 			expectedResult: true,
@@ -73,11 +76,13 @@ func TestAddUserValidation(t *testing.T) {
 		{
 			name: "Failure - Empty Display Name",
 			inputUser: &models.User{
-				FullName: "יואב פוקס",
-				Username: "",
-				Password: "secret123",
-				Phone:    "0501234567",
-				Role:     models.RoleEmployee,
+				FullName:  "יואב פוקס",
+				Username:  "",
+				Password:  "secret123",
+				Phone:     "0501234567",
+				Email:     "test@example.com",
+				Role:      models.RoleEmployee,
+				IsFlexibleModel: true,
 			},
 			existingUsers:  map[string]*models.User{},
 			expectedResult: false,
@@ -87,11 +92,13 @@ func TestAddUserValidation(t *testing.T) {
 		{
 			name: "Failure - Empty Password",
 			inputUser: &models.User{
-				FullName: "יואב פוקס",
-				Username: "יואב פוקס",
-				Password: "",
-				Phone:    "0501234567",
-				Role:     models.RoleEmployee,
+				FullName:  "יואב פוקס",
+				Username:  "יואב פוקס",
+				Password:  "",
+				Phone:     "0501234567",
+				Email:     "test@example.com",
+				Role:      models.RoleEmployee,
+				IsFlexibleModel: true,
 			},
 			existingUsers:  map[string]*models.User{},
 			expectedResult: false,
@@ -101,11 +108,13 @@ func TestAddUserValidation(t *testing.T) {
 		{
 			name: "Failure - Phone Contains Letters",
 			inputUser: &models.User{
-				FullName: "יואב פוקס",
-				Username: "יואב פוקס",
-				Password: "secret123",
-				Phone:    "05012abcde",
-				Role:     models.RoleEmployee,
+				FullName:  "יואב פוקס",
+				Username:  "יואב פוקס",
+				Password:  "secret123",
+				Phone:     "05012abcde",
+				Email:     "test@example.com",
+				Role:      models.RoleEmployee,
+				IsFlexibleModel: true,
 			},
 			existingUsers:  map[string]*models.User{},
 			expectedResult: false,
@@ -115,11 +124,13 @@ func TestAddUserValidation(t *testing.T) {
 		{
 			name: "Failure - Phone Too Short",
 			inputUser: &models.User{
-				FullName: "יואב פוקס",
-				Username: "יואב פוקס",
-				Password: "secret123",
-				Phone:    "050123",
-				Role:     models.RoleEmployee,
+				FullName:  "יואב פוקס",
+				Username:  "יואב פוקס",
+				Password:  "secret123",
+				Phone:     "050123",
+				Email:     "test@example.com",
+				Role:      models.RoleEmployee,
+				IsFlexibleModel: true,
 			},
 			existingUsers:  map[string]*models.User{},
 			expectedResult: false,
@@ -129,11 +140,13 @@ func TestAddUserValidation(t *testing.T) {
 		{
 			name: "Failure - Invalid Role",
 			inputUser: &models.User{
-				FullName: "יואב פוקס",
-				Username: "יואב פוקס",
-				Password: "secret123",
-				Phone:    "0501234567",
-				Role:     "superuser",
+				FullName:  "יואב פוקס",
+				Username:  "יואב פוקס",
+				Password:  "secret123",
+				Phone:     "0501234567",
+				Email:     "test@example.com",
+				Role:      "superuser",
+				IsFlexibleModel: true,
 			},
 			existingUsers:  map[string]*models.User{},
 			expectedResult: false,
@@ -143,11 +156,13 @@ func TestAddUserValidation(t *testing.T) {
 		{
 			name: "Failure - Phone Already Exists",
 			inputUser: &models.User{
-				FullName: "יואב פוקס",
-				Username: "משתמש חדש",
-				Password: "secret123",
-				Phone:    "0509999999",
-				Role:     models.RoleEmployee,
+				FullName:  "יואב פוקס",
+				Username:  "משתמש חדש",
+				Password:  "secret123",
+				Phone:     "0509999999",
+				Email:     "test@example.com",
+				Role:      models.RoleEmployee,
+				IsFlexibleModel: true,
 			},
 			existingUsers: map[string]*models.User{
 				"0509999999": {Username: "משתמש קיים", Phone: "0509999999"},
@@ -170,7 +185,7 @@ func TestAddUserValidation(t *testing.T) {
 			result := AddUserValidation(c, tt.inputUser, mockStore)
 
 			if result != tt.expectedResult {
-				t.Errorf("expected return %v, got %v", tt.expectedResult, result)
+				t.Errorf("expected return %v, got %v. Error from server: %s", tt.expectedResult, result, w.Body.String())
 			}
 
 			if !tt.expectedResult {
