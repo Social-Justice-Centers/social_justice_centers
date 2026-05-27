@@ -244,11 +244,11 @@ const RegularShiftPage = () => {
                     <div className="bg-white p-4 rounded-xl shadow-sm border mb-2 flex justify-between items-center">
                         <div>
                             <p className="text-sm text-gray-500 font-bold mb-1">תאריך</p>
-                            <p className="text-lg font-bold" style={{ color: BRAND_GREEN }}>{activeShift.date}</p>
+                            <p className="text-lg font-bold" style={{ color: BRAND_GREEN }}>{activeShift?.date}</p>
                         </div>
                         <div className="text-left">
                             <p className="text-sm text-gray-500 font-bold mb-1">שעת כניסה</p>
-                            <p className="text-lg font-bold" style={{ color: BRAND_GREEN }}>{activeShift.startTime}</p>
+                            <p className="text-lg font-bold" style={{ color: BRAND_GREEN }}>{activeShift?.startTime}</p>
                         </div>
                     </div>
 
