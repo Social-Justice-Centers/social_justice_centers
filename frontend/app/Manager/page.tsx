@@ -3,7 +3,7 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, Users, CalendarPlus, ArrowRight, X, Car } from 'lucide-react';
+import { UserPlus, CalendarPlus, ArrowRight, Car } from 'lucide-react';
 
 const BRAND_GREEN = '#446F41';
 const BG_CREAM = '#FFFFFF';
@@ -66,7 +66,7 @@ const ManagerPage = () => {
             }
         };
         verify();
-    }, []);
+    }, [router]);
 
     // ---- Fetch Team (For Modal) ----
     // We only need this when opening the shift modal now

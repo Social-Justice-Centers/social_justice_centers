@@ -3,12 +3,10 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Layers, Clock, ArrowRight, LogOut, ChevronDown, ChevronUp, Car } from 'lucide-react';
+import { Calendar, Layers, Clock, ArrowRight, LogOut, Car } from 'lucide-react';
 
 const BRAND_GREEN = '#446F41';
 const BG_CREAM = '#FFFFFF';
-const INPUT_BG = '#B2C6AE';
-
 // ---- Types ----
 interface UserProfile {
     username: string;
@@ -16,15 +14,6 @@ interface UserProfile {
     role: string;
     isFlexibleModel: boolean;
     isRegularModel: boolean;
-}
-
-interface Shift {
-    ID: number;
-    date: string;
-    startTime: string;
-    endTime: string;
-    notes: string;
-    assignedBy: string;
 }
 
 // ---- Component ----
@@ -49,7 +38,7 @@ const EmployeePanelPage = () => {
             }
         };
         verify();
-    }, []);
+    }, [router]);
 
     // The "My Shifts" button now navigates to a dedicated page
 

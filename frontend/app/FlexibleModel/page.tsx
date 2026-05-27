@@ -57,7 +57,7 @@ const FlexibleModelPage = () => {
             }
         };
         verify();
-    }, []);
+    }, [router]);
 
     // ---- Submit ----
     const handleSubmit = async (e: React.FormEvent) => {

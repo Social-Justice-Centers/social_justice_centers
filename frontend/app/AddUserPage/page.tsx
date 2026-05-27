@@ -23,12 +23,13 @@ const CreateUserPage = () => {
 
   const [status, setStatus] = useState({ loading: false, message: '', error: false });
 
-  const handleChange = (e:any) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
     setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
-  const handleSubmit = async (e:any) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.isFlexibleModel && !formData.isRegularModel) {
@@ -66,7 +67,7 @@ const CreateUserPage = () => {
       } else {
         setStatus({ loading: false, message: data.error || res.statusText, error: true });
       }
-    } catch (err) {
+    } catch {
       setStatus({ loading: false, message: 'תקלה בתקשורת עם השרת', error: true });
     }
   };

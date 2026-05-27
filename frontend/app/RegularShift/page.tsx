@@ -13,10 +13,15 @@ const getCurrentTimeString = () => {
     return new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 
+interface ActiveShift {
+    startTime: string;
+    date: string;
+}
+
 const RegularShiftPage = () => {
     const router = useRouter();
 
-    const [activeShift, setActiveShift] = useState<any>(null);
+    const [activeShift, setActiveShift] = useState<ActiveShift | null>(null);
     const [pageLoading, setPageLoading] = useState(true);
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');

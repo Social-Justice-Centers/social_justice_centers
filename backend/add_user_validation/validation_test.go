@@ -20,7 +20,6 @@ type MockRegistry struct {
 
 func (m *MockRegistry) Users() domain.UserStore                   { return m.MockUserStore }
 func (m *MockRegistry) Shifts() domain.ShiftStore                 { return nil }
-func (m *MockRegistry) DrivingReports() domain.DrivingReportStore { return nil }
 
 // MockUserStore implements domain.UserStore using an in-memory map keyed by phone.
 type MockUserStore struct {
@@ -66,7 +65,6 @@ func TestAddUserValidation(t *testing.T) {
 				Phone:    "0501234567",
 				Email:    "test@example.com",
 				Role:     models.RoleEmployee,
-				WorkModel: "גמיש", // שים לב: עדכן את שם השדה אם הוא נקרא אחרת במודל שלך
 			},
 			existingUsers:  map[string]*models.User{},
 			expectedResult: true,
