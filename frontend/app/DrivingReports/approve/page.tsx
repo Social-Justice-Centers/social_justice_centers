@@ -7,7 +7,6 @@ import { ArrowRight, FileText, CheckCircle } from 'lucide-react';
 
 const BRAND_GREEN = '#446F41';
 const BG_CREAM = '#FFFFFF';
-const INPUT_BG = '#B2C6AE';
 
 interface TeamReport {
     ID: number;
@@ -43,7 +42,7 @@ const ApproveDrivingReportsPage = () => {
             setLoading(false);
         };
         init();
-    }, []);
+    }, [router]);
 
     const loadReports = async () => {
         try {

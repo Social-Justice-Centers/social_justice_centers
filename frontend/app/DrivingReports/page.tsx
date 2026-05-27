@@ -50,7 +50,7 @@ const DrivingReportsPage = () => {
             setLoading(false);
         };
         init();
-    }, []);
+    }, [router]);
 
     const loadReports = async () => {
         try {
