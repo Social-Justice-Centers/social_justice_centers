@@ -3,7 +3,7 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, Users, CalendarPlus, ArrowRight, X } from 'lucide-react';
+import { UserPlus, Users, CalendarPlus, ArrowRight, X, Car } from 'lucide-react';
 
 const BRAND_GREEN = '#446F41';
 const BG_CREAM = '#FFFFFF';
@@ -178,6 +178,17 @@ const ManagerPage = () => {
                 >
                     <span className="text-xl font-bold">הקצאת משמרת</span>
                     <CalendarPlus size={28} className="opacity-80" />
+                </button>
+
+                {/* Approve Driving Reports */}
+                <button
+                    id="approveDrivingReportsBtn"
+                    onClick={() => router.push('/DrivingReports/approve')}
+                    className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md border-2 transition-all hover:opacity-80 active:scale-95"
+                    style={{ borderColor: BRAND_GREEN, color: BRAND_GREEN, backgroundColor: 'white' }}
+                >
+                    <span className="text-xl font-bold">אישור דוחות נסיעות</span>
+                    <Car size={28} />
                 </button>
 
             </div>

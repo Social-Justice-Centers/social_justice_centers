@@ -118,6 +118,7 @@ const ManagerMenuPage = () => {
                     פאנל עובד
                 </button>
 
+
             </div>
 
             {/* Logout */}

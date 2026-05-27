@@ -122,13 +122,14 @@ const CreateUserPage = () => {
           </div>
 
           <div>
-            <label className={labelClass}>אימייל (Gmail)</label>
+            <label className={labelClass}>*אימייל - חובה לצורך קבלת קוד כניסה</label>
             <input
               type="email"
               name="email"
               placeholder="example@gmail.com"
               value={formData.email}
               onChange={handleChange}
+              required
               className={inputClass}
               autoComplete="off"
               dir="ltr"
