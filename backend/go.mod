@@ -2,6 +2,8 @@ module my-backend
 
 go 1.24.0
 
+toolchain go1.24.3
+
 require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/sessions v1.0.4
