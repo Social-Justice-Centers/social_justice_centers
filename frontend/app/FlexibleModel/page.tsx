@@ -3,16 +3,48 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Layers } from 'lucide-react';
+import { ArrowRight, CheckCircle, Sun, Clock, Thermometer, Umbrella } from 'lucide-react';
 
 const BRAND_GREEN = '#446F41';
-const BG_CREAM = '#FFFFFF';
+const BG_CREAM    = '#FFFFFF';
+const INPUT_BG    = '#B2C6AE';
+
+type DayType = 'full' | 'half' | 'sick' | 'dayoff';
+
+interface DayOption {
+    value: DayType;
+    label: string;
+    icon: React.ReactNode;
+    color: string;
+}
+
+const DAY_OPTIONS: DayOption[] = [
+    { value: 'full',   label: 'יום מלא',   icon: <Sun size={32} />,         color: BRAND_GREEN },
+    { value: 'half',   label: 'חצי יום',   icon: <Clock size={32} />,        color: '#6a9e65' },
+    { value: 'sick',   label: 'מחלה',      icon: <Thermometer size={32} />,  color: '#c0882a' },
+    { value: 'dayoff', label: 'יום חופש',  icon: <Umbrella size={32} />,     color: '#3b7abf' },
+];
+
+const todayString = (): string => {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
 
 const FlexibleModelPage = () => {
     const router = useRouter();
-    const [loading, setLoading] = useState(true);
 
-    // ---- Session Guard ----
+    const [pageLoading, setPageLoading] = useState(true);
+    const [selected, setSelected]       = useState<DayType | null>(null);
+    const [notes, setNotes]             = useState('');
+    const [confirmed, setConfirmed]     = useState<boolean | null>(null);
+    const [confirmError, setConfirmError] = useState('');
+    const [submitting, setSubmitting]   = useState(false);
+    const [errorMsg, setErrorMsg]       = useState('');
+    const [success, setSuccess]         = useState(false);
+
+    const date = todayString();
+
+    // ---- Session guard ----
     useEffect(() => {
         const verify = async () => {
             try {
@@ -21,40 +53,196 @@ const FlexibleModelPage = () => {
             } catch {
                 router.push('/');
             } finally {
-                setLoading(false);
+                setPageLoading(false);
             }
         };
         verify();
-    }, []);
+    }, [router]);
 
-    if (loading) return (
+    // ---- Submit ----
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setConfirmError('');
+        setErrorMsg('');
+
+        if (!selected) {
+            setErrorMsg('יש לבחור סוג יום');
+            return;
+        }
+        if (confirmed !== true) {
+            setConfirmError('יש לאשר שהפרטים נכונים לפני השליחה');
+            return;
+        }
+
+        setSubmitting(true);
+        try {
+            const res = await fetch(`${API_BASE_URL}/shifts/report`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({
+                    date,
+                    startTime:    '',
+                    endTime:      '',
+                    workDuration: selected,
+                    notes,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setErrorMsg(data.error || 'שגיאה בשמירת הדיווח');
+                return;
+            }
+            setSuccess(true);
+        } catch {
+            setErrorMsg('שגיאת תקשורת עם השרת');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // ---- Loading ----
+    if (pageLoading) return (
         <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">
             <p style={{ color: BRAND_GREEN }} className="text-xl font-bold">טוען...</p>
         </div>
     );
 
+    // ---- Success screen ----
+    if (success) return (
+        <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen flex-col items-center justify-center p-6" dir="rtl">
+            <CheckCircle size={64} style={{ color: BRAND_GREEN }} className="mb-6" />
+            <h2 className="text-2xl font-bold mb-2" style={{ color: BRAND_GREEN }}>הדיווח נשמר בהצלחה!</h2>
+            <p className="text-gray-500 mb-2">
+                {DAY_OPTIONS.find(o => o.value === selected)?.label} — {date}
+            </p>
+            <p className="text-gray-400 text-sm mb-8">הדיווח תועד במערכת</p>
+            <button
+                onClick={() => router.push('/Browser')}
+                className="px-8 py-3 rounded-xl text-white text-lg font-bold transition hover:opacity-90"
+                style={{ backgroundColor: BRAND_GREEN }}
+            >
+                חזרה לפאנל
+            </button>
+        </div>
+    );
+
+    // ---- Main form ----
     return (
-        <div style={{ backgroundColor: BG_CREAM }} className="min-h-screen p-6" dir="rtl">
+        <div style={{ backgroundColor: BG_CREAM }} className="min-h-screen p-6 relative" dir="rtl">
+
             {/* Header */}
-            <div className="flex items-center justify-between mb-12">
-                <button
-                    id="backBtn"
-                    onClick={() => router.push('/Browser')}
-                    className="flex items-center gap-2 font-bold hover:opacity-70 transition"
-                    style={{ color: BRAND_GREEN }}
-                >
-                    <ArrowRight size={22} />
-                    <span>חזרה</span>
-                </button>
+            <button
+                onClick={() => router.push('/Browser')}
+                className="absolute top-6 right-6 flex items-center gap-2 font-bold hover:opacity-70 transition z-10"
+                style={{ color: BRAND_GREEN }}
+            >
+                <ArrowRight size={22} />
+                <span>חזרה</span>
+            </button>
+
+            <div className="flex items-center justify-center mb-8 pt-14">
                 <h1 className="text-2xl font-bold" style={{ color: BRAND_GREEN }}>מודל גמיש</h1>
             </div>
 
-            {/* Blank State Content */}
-            <div className="flex flex-col items-center justify-center mt-20 opacity-50">
-                <Layers size={80} style={{ color: BRAND_GREEN }} className="mb-6" />
-                <h2 className="text-2xl font-bold text-center" style={{ color: BRAND_GREEN }}>מסך מודל גמיש</h2>
-                <p className="text-gray-500 mt-4 text-center">כאן יופיע בעתיד התוכן למודל גמיש.</p>
-            </div>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6 max-w-md mx-auto">
+
+                {/* Date card */}
+                <div className="bg-gray-50 rounded-2xl border p-5 text-center">
+                    <p className="text-sm text-gray-500 font-semibold mb-1">תאריך הדיווח</p>
+                    <p className="text-3xl font-bold" style={{ color: BRAND_GREEN }}>{date}</p>
+                </div>
+
+                {/* Day-type selector */}
+                <div>
+                    <p className="text-sm font-semibold mb-3" style={{ color: BRAND_GREEN }}>סוג הנוכחות</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        {DAY_OPTIONS.map(opt => {
+                            const isActive = selected === opt.value;
+                            return (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => { setSelected(opt.value); setConfirmed(null); setConfirmError(''); }}
+                                    className="flex flex-col items-center justify-center gap-2 h-28 rounded-2xl border-2 font-bold text-lg transition-all active:scale-95"
+                                    style={{
+                                        borderColor:     opt.color,
+                                        backgroundColor: isActive ? opt.color : 'white',
+                                        color:           isActive ? 'white'   : opt.color,
+                                    }}
+                                >
+                                    {opt.icon}
+                                    <span>{opt.label}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                    <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_GREEN }}>
+                        הערות (אופציונלי)
+                    </label>
+                    <textarea
+                        rows={3}
+                        placeholder="הערות..."
+                        className="w-full px-4 py-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#446F41] resize-none"
+                        style={{ backgroundColor: INPUT_BG, color: BRAND_GREEN }}
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                    />
+                </div>
+
+                {/* Confirmation */}
+                <div className="bg-white rounded-xl border-2 p-5" style={{ borderColor: BRAND_GREEN }}>
+                    <p className="font-bold text-center mb-4" style={{ color: BRAND_GREEN }}>האם הפרטים שהזנת נכונים?</p>
+                    <div className="flex gap-4 justify-center">
+                        <button
+                            type="button"
+                            onClick={() => { setConfirmed(true); setConfirmError(''); }}
+                            className="flex-1 h-12 rounded-xl font-bold text-lg border-2 transition"
+                            style={confirmed === true
+                                ? { backgroundColor: BRAND_GREEN, color: 'white', borderColor: BRAND_GREEN }
+                                : { backgroundColor: 'white', color: BRAND_GREEN, borderColor: BRAND_GREEN }}
+                        >
+                            כן
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setConfirmed(false); setConfirmError(''); }}
+                            className="flex-1 h-12 rounded-xl font-bold text-lg border-2 transition"
+                            style={confirmed === false
+                                ? { backgroundColor: '#dc2626', color: 'white', borderColor: '#dc2626' }
+                                : { backgroundColor: 'white', color: '#dc2626', borderColor: '#dc2626' }}
+                        >
+                            לא
+                        </button>
+                    </div>
+                    {confirmed === false && (
+                        <p className="text-center text-red-500 text-sm mt-3 font-semibold">אנא תקן את הפרטים</p>
+                    )}
+                    {confirmError && (
+                        <p className="text-center text-red-500 text-sm mt-3 font-semibold">{confirmError}</p>
+                    )}
+                </div>
+
+                {errorMsg && (
+                    <div className="bg-red-100 text-red-700 p-3 rounded-lg text-center font-bold">
+                        {errorMsg}
+                    </div>
+                )}
+
+                <button
+                    type="submit"
+                    disabled={submitting || !selected || confirmed !== true}
+                    className="w-full h-16 text-white text-xl font-bold rounded-xl transition hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{ backgroundColor: BRAND_GREEN }}
+                >
+                    {submitting ? 'שומר...' : 'שליחת דיווח'}
+                </button>
+
+            </form>
         </div>
     );
 };

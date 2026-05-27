@@ -45,7 +45,7 @@ const ManagerMenuPage = () => {
         };
 
         verifySession();
-    }, []);
+    }, [router]);
 
     const handleLogout = async () => {
         await fetch(`${API_BASE_URL}/logout`, {
@@ -117,6 +117,7 @@ const ManagerMenuPage = () => {
                 >
                     פאנל עובד
                 </button>
+
 
             </div>
 
