@@ -18,8 +18,9 @@ type MockRegistry struct {
 	MockUserStore *MockUserStore
 }
 
-func (m *MockRegistry) Users() domain.UserStore  { return m.MockUserStore }
-func (m *MockRegistry) Shifts() domain.ShiftStore { return nil }
+func (m *MockRegistry) Users() domain.UserStore                   { return m.MockUserStore }
+func (m *MockRegistry) Shifts() domain.ShiftStore                 { return nil }
+func (m *MockRegistry) DrivingReports() domain.DrivingReportStore { return nil }
 
 // MockUserStore implements domain.UserStore using an in-memory map keyed by phone.
 type MockUserStore struct {
@@ -39,9 +40,9 @@ func (m *MockUserStore) GetByPhone(phone string) (*models.User, error) {
 }
 
 // Unused by validation, required to satisfy the interface
-func (m *MockUserStore) Create(user *models.User) error                           { return nil }
-func (m *MockUserStore) GetAll() ([]models.User, error)                           { return nil, nil }
-func (m *MockUserStore) GetByDirectManager(p string) ([]models.User, error)       { return nil, nil }
+func (m *MockUserStore) Create(user *models.User) error                               { return nil }
+func (m *MockUserStore) GetAll() ([]models.User, error)                               { return nil, nil }
+func (m *MockUserStore) GetByDirectManager(p string) ([]models.User, error)           { return nil, nil }
 
 // --- Tests ---
 
@@ -65,6 +66,7 @@ func TestAddUserValidation(t *testing.T) {
 				Phone:    "0501234567",
 				Email:    "test@example.com",
 				Role:     models.RoleEmployee,
+				WorkModel: "גמיש", // שים לב: עדכן את שם השדה אם הוא נקרא אחרת במודל שלך
 			},
 			existingUsers:  map[string]*models.User{},
 			expectedResult: true,
