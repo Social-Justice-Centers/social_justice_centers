@@ -44,7 +44,7 @@ const MyShiftsPage = () => {
         };
 
         fetchShifts();
-    }, []);
+    }, [router]);
 
     if (loading) return (
         <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">

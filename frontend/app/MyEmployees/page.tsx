@@ -43,7 +43,7 @@ const MyEmployeesPage = () => {
         };
 
         fetchTeam();
-    }, []);
+    }, [router]);
 
     const filteredTeam = team.filter(member => 
         (member.fullName || '').toLowerCase().includes(searchQuery.toLowerCase())
