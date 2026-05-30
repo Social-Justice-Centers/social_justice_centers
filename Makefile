@@ -6,7 +6,9 @@ all: run
 # Build and start both containers in detached mode
 run:
 	docker compose -f docker/docker-compose.yml up -d
-	@echo "\n Open http://localhost:3000 in your browser"
+	@echo "\n🚀 Server started!"
+	@echo "If running locally: http://localhost:3000"
+	@echo "If running on VM:   http://$(SERVER_IP):3000"
 
 # Stop and remove both containers
 stop:
@@ -27,7 +29,7 @@ image-backend:
 # ==========================================
 # Deployment Commands
 # ==========================================
-SERVER_USER ?= yoav.fuchs
+SERVER_USER ?= yoavfuchs
 SERVER_IP ?= 10.10.32.55
 PROJECT_DIR ?= ~/social_justice_centers
 
