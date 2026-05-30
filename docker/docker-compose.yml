@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    volumes:
+      # Mount the database file so data persists across container restarts
+      - ../backend/local_database.db:/app/local_database.db
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # Define environment variables if needed
+      - NEXT_PUBLIC_API_URL=http://localhost:8080

@@ -58,6 +58,32 @@ The system follows a microservices-oriented approach:
 
 ---
 
+## 🚀 Getting Started
+
+Getting the project up and running locally is simple. You don't need to install Node.js, Go, or any other dependencies on your host machine other than **Docker** and **Make**.
+
+1. **Clone the repository:**
+   ```bash
+   git clone <repository-url>
+   cd social_justice_centers
+   ```
+
+2. **Start the application:**
+   ```bash
+   make run
+   ```
+   *This command will build the Docker images and start both the Next.js frontend and Go backend in the background. It will also attempt to open `http://localhost:3000` in your browser automatically.*
+
+### Useful Developer Commands
+- `make run`: Build and start all services.
+- `make stop`: Stop all running services.
+- `make logs`: View the combined logs of the frontend and backend.
+- `make build`: Force a clean rebuild of the Docker images.
+- `make image-frontend`: Build a standalone frontend image.
+- `make image-backend`: Build a standalone backend image.
+
+---
+
 ## 👥 The Team
 
 This project was designed and developed by:
