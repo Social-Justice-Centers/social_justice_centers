@@ -6,9 +6,9 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 const LOGO_SRC = '/images/logo.png';
-const BRAND_GREEN = '#446F41';
+const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
-const INPUT_BG_COLOR = '#B2C6AE';
+const INPUT_BG_COLOR = '#E0F2FE';
 
 const LoginPage = () => {
     const [step, setStep] = useState<'phone' | 'otp'>('phone');
@@ -17,7 +17,6 @@ const LoginPage = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [secondsLeft, setSecondsLeft] = useState(60);
-    const [devOtp, setDevOtp] = useState('');
 
     const router = useRouter();
     const otpRef = useRef<HTMLInputElement>(null);
@@ -54,7 +53,6 @@ const LoginPage = () => {
 
             if (response.ok) {
                 setOtp('');
-                setDevOtp(data.devOtp || '');
                 setStep('otp');
             } else {
                 setError(data.error || 'שגיאה בשליחת הקוד');
@@ -100,7 +98,7 @@ const LoginPage = () => {
 
     const goBack = () => { setStep('phone'); setError(''); setOtp(''); };
 
-    const inputClasses = "h-16 w-full text-center text-lg font-semibold placeholder-current bg-opacity-70 rounded-lg outline-none focus:ring-2 focus:ring-[#446F41]";
+    const inputClasses = "h-16 w-full text-center text-lg font-semibold placeholder-current bg-opacity-70 rounded-lg outline-none focus:ring-2 focus:ring-[#0284C7]";
 
     return (
         <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center p-4">
@@ -123,7 +121,7 @@ const LoginPage = () => {
                             type="tel"
                             placeholder="מספר טלפון"
                             className={inputClasses}
-                            style={{ backgroundColor: INPUT_BG_COLOR, color: BRAND_GREEN }}
+                            style={{ backgroundColor: INPUT_BG_COLOR, color: BRAND_BLUE }}
                             value={phone}
                             onChange={(e) => setPhone(e.target.value)}
                             dir="rtl"
@@ -136,23 +134,18 @@ const LoginPage = () => {
                             type="submit"
                             disabled={loading || !phone}
                             className="w-full h-16 flex items-center justify-center text-lg font-bold text-white shadow-md rounded-lg transition duration-150 ease-in-out hover:bg-opacity-90 disabled:opacity-50"
-                            style={{ backgroundColor: BRAND_GREEN }}
+                            style={{ backgroundColor: BRAND_BLUE }}
                         >
                             {loading ? 'שולח...' : 'שלח קוד לאימייל'}
                         </button>
                     </form>
                 ) : (
                     <form onSubmit={handleVerifyOTP} className="space-y-6 w-full">
-                        <p className="text-center text-sm font-medium" style={{ color: BRAND_GREEN }} dir="rtl">
+                        <p className="text-center text-sm font-medium" style={{ color: BRAND_BLUE }} dir="rtl">
                             קוד חד-פעמי נשלח לאימייל הרשום עבור מספר {phone}
                         </p>
 
-                        {devOtp && (
-                            <div className="w-full rounded-lg p-3 text-center border-2" style={{ borderColor: BRAND_GREEN, backgroundColor: '#f0f7ef' }}>
-                                <p className="text-xs font-semibold mb-1" style={{ color: BRAND_GREEN }}>DEV MODE — הקוד שלך:</p>
-                                <p className="text-3xl font-bold tracking-widest" style={{ color: BRAND_GREEN }}>{devOtp}</p>
-                            </div>
-                        )}
+
 
                         <input
                             ref={otpRef}
@@ -161,7 +154,7 @@ const LoginPage = () => {
                             maxLength={6}
                             placeholder="קוד 6 ספרות"
                             className={inputClasses}
-                            style={{ backgroundColor: INPUT_BG_COLOR, color: BRAND_GREEN }}
+                            style={{ backgroundColor: INPUT_BG_COLOR, color: BRAND_BLUE }}
                             value={otp}
                             onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                             dir="ltr"
@@ -169,7 +162,7 @@ const LoginPage = () => {
 
                         <p
                             className="text-center text-sm font-semibold"
-                            style={{ color: secondsLeft > 10 ? BRAND_GREEN : '#dc2626' }}
+                            style={{ color: secondsLeft > 10 ? BRAND_BLUE : '#dc2626' }}
                         >
                             {secondsLeft > 0
                                 ? `הקוד בתוקף עוד ${secondsLeft} שניות`
@@ -182,7 +175,7 @@ const LoginPage = () => {
                             type="submit"
                             disabled={loading || secondsLeft === 0 || otp.length !== 6}
                             className="w-full h-16 flex items-center justify-center text-lg font-bold text-white shadow-md rounded-lg transition duration-150 ease-in-out hover:bg-opacity-90 disabled:opacity-50"
-                            style={{ backgroundColor: BRAND_GREEN }}
+                            style={{ backgroundColor: BRAND_BLUE }}
                         >
                             {loading ? 'מאמת...' : 'כניסה'}
                         </button>
@@ -191,7 +184,7 @@ const LoginPage = () => {
                             type="button"
                             onClick={goBack}
                             className="w-full text-center text-sm font-medium underline"
-                            style={{ color: BRAND_GREEN }}
+                            style={{ color: BRAND_BLUE }}
                         >
                             {secondsLeft === 0 ? 'שלח קוד חדש' : 'חזרה'}
                         </button>

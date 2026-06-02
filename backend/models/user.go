@@ -20,7 +20,7 @@ type User struct {
 	Phone           string `gorm:"uniqueIndex;not null" json:"phone"` // Primary unique identifier
 	Birthday        string `json:"birthday"`                          // Format: DD/MM/YYYY
 	Role            Role   `gorm:"type:text;not null"   json:"role"`
-	DirectManager   string `json:"directManager"`                     // Phone number of their manager
+	DirectManager   uint   `json:"directManager"`                     // DB ID of their manager User record
 	IsFlexibleModel bool   `json:"isFlexibleModel"`
 	IsRegularModel  bool   `json:"isRegularModel"`
 }

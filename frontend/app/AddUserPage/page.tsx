@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-const BRAND_GREEN = '#446F41';
+const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
 
 const CreateUserPage = () => {
@@ -72,7 +72,7 @@ const CreateUserPage = () => {
     }
   };
 
-  const inputClass = "w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#446F41] bg-white text-gray-800 text-right";
+  const inputClass = "w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#0284C7] bg-white text-gray-800 text-right";
   const labelClass = "block text-sm font-bold text-gray-700 mb-2 text-right";
 
   return (
@@ -80,7 +80,7 @@ const CreateUserPage = () => {
       
        <button
               onClick={() => router.push('/Manager')}
-              className="absolute top-6 right-6 flex items-center gap-2 text-[#446F41] font-bold hover:text-green-800 transition-colors z-10"
+              className="absolute top-6 right-6 flex items-center gap-2 text-[#0284C7] font-bold hover:text-green-800 transition-colors z-10"
             >
               <ArrowRight size={24} />
               <span>חזרה</span>
@@ -186,7 +186,7 @@ const CreateUserPage = () => {
                 name="isFlexibleModel"
                 checked={formData.isFlexibleModel}
                 onChange={handleChange}
-                className="w-5 h-5 accent-[#446F41]"
+                className="w-5 h-5 accent-[#0284C7]"
               />
             </label>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -196,7 +196,7 @@ const CreateUserPage = () => {
                 name="isRegularModel"
                 checked={formData.isRegularModel}
                 onChange={handleChange}
-                className="w-5 h-5 accent-[#446F41]"
+                className="w-5 h-5 accent-[#0284C7]"
               />
             </label>
           </div>
@@ -211,7 +211,7 @@ const CreateUserPage = () => {
             type="submit"
             disabled={status.loading}
             className="w-full h-12 rounded-xl text-white font-bold shadow-md hover:opacity-90 transition-all disabled:opacity-50 mt-4"
-            style={{ backgroundColor: BRAND_GREEN }}
+            style={{ backgroundColor: BRAND_BLUE }}
           >
             {status.loading ? 'שומר...' : 'צור משתמש'}
           </button>

@@ -2,10 +2,8 @@ package Initialization
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/tls"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"log"
 	"math/big"
@@ -13,10 +11,12 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type otpEntry struct {
-	hash   string // SHA-256 of the raw OTP — never stored in plaintext
+	hash   string // bcrypt hash of raw OTP
 	expiry time.Time
 }
 
@@ -33,15 +33,15 @@ func generateOTP() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
-func hashOTP(code string) string {
-	h := sha256.Sum256([]byte(code))
-	return hex.EncodeToString(h[:])
-}
-
 func storeOTP(phone, code string) {
+	hashed, err := bcrypt.GenerateFromPassword([]byte(code), 10)
+	if err != nil {
+		log.Printf("ERROR: bcrypt hash failed: %v\n", err)
+		return
+	}
 	otpMu.Lock()
 	defer otpMu.Unlock()
-	otpStore[phone] = otpEntry{hash: hashOTP(code), expiry: time.Now().Add(time.Minute)}
+	otpStore[phone] = otpEntry{hash: string(hashed), expiry: time.Now().Add(time.Minute)}
 }
 
 func verifyAndConsumeOTP(phone, code string) bool {
@@ -55,7 +55,8 @@ func verifyAndConsumeOTP(phone, code string) bool {
 		delete(otpStore, phone)
 		return false
 	}
-	if entry.hash != hashOTP(code) {
+	err := bcrypt.CompareHashAndPassword([]byte(entry.hash), []byte(code))
+	if err != nil {
 		return false
 	}
 	delete(otpStore, phone)
@@ -64,17 +65,22 @@ func verifyAndConsumeOTP(phone, code string) bool {
 
 func sendOTPEmail(toEmail, otp string) error {
 	host := os.Getenv("SMTP_HOST")
-	port := os.Getenv("SMTP_PORT")
-	user := os.Getenv("SMTP_USER")
-	pass := os.Getenv("SMTP_PASS")
-
-	// Dev fallback: print OTP to server log when SMTP is not configured.
-	if host == "" || user == "" || pass == "" {
-		log.Printf("[DEV] OTP for <%s>: %s (configure SMTP_* env vars to send real emails)\n", toEmail, otp)
-		return nil
+	if host == "" {
+		host = "smtp.gmail.com"
 	}
+	port := os.Getenv("SMTP_PORT")
 	if port == "" {
 		port = "587"
+	}
+	user := os.Getenv("SMTP_USER")
+	if user == "" {
+		user = "sjcenter@gmail.com"
+	}
+	pass := os.Getenv("SMTP_PASS")
+
+	if pass == "" {
+		log.Printf("[DEV WARN] SMTP_PASS not set! OTP for <%s>: %s\n", toEmail, otp)
+		return nil
 	}
 
 	subject := "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte("קוד כניסה למערכת")) + "?="
@@ -90,7 +96,6 @@ func sendOTPEmail(toEmail, otp string) error {
 
 	auth := smtp.PlainAuth("", user, pass, host)
 
-	// Port 465 uses implicit TLS; port 587 uses STARTTLS (handled by smtp.SendMail).
 	if port == "465" {
 		return sendViaTLS(host, port, auth, user, toEmail, msg)
 	}
