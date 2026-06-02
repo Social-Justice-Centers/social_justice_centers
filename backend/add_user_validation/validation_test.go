@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"my-backend/domain"
 	"my-backend/models"
 )
@@ -18,9 +19,10 @@ type MockRegistry struct {
 	MockUserStore *MockUserStore
 }
 
-func (m *MockRegistry) Users() domain.UserStore                   { return m.MockUserStore }
-func (m *MockRegistry) Shifts() domain.ShiftStore                 { return nil }
-func (m *MockRegistry) DrivingReports() domain.DrivingReportStore { return nil }
+func (m *MockRegistry) Users() domain.UserStore                                    { return m.MockUserStore }
+func (m *MockRegistry) Shifts() domain.ShiftStore                                  { return nil }
+func (m *MockRegistry) DrivingReports() domain.DrivingReportStore                  { return nil }
+func (m *MockRegistry) EmployeeManagerHistories() domain.EmployeeManagerHistoryStore { return nil }
 
 // MockUserStore implements domain.UserStore using an in-memory map keyed by phone.
 type MockUserStore struct {
@@ -40,9 +42,13 @@ func (m *MockUserStore) GetByPhone(phone string) (*models.User, error) {
 }
 
 // Unused by validation, required to satisfy the interface
-func (m *MockUserStore) Create(user *models.User) error                               { return nil }
-func (m *MockUserStore) GetAll() ([]models.User, error)                               { return nil, nil }
-func (m *MockUserStore) GetByDirectManager(p string) ([]models.User, error)           { return nil, nil }
+func (m *MockUserStore) Create(user *models.User) error                                  { return nil }
+func (m *MockUserStore) GetAll() ([]models.User, error)                                  { return nil, nil }
+func (m *MockUserStore) GetByDirectManagerID(id uint) ([]models.User, error)             { return nil, nil }
+func (m *MockUserStore) GetByID(id uint) (*models.User, error)                           { return nil, errors.New("not found") }
+func (m *MockUserStore) Update(user *models.User) error                                  { return nil }
+func (m *MockUserStore) GetByEmail(email string) (*models.User, error)                  { return nil, nil }
+func (m *MockUserStore) Delete(id uint) error                                            { return nil }
 
 // --- Tests ---
 
@@ -202,4 +208,12 @@ func TestAddUserValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPrintUserJSON(t *testing.T) {
+	user := models.User{
+		Model: gorm.Model{ID: 123},
+	}
+	bytes, _ := json.Marshal(user)
+	t.Logf("USER JSON: %s", string(bytes))
 }

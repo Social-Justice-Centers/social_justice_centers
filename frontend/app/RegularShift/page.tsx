@@ -5,9 +5,9 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, CheckCircle, Clock, Check } from 'lucide-react';
 
-const BRAND_GREEN = '#446F41';
+const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
-const INPUT_BG = '#B2C6AE';
+const INPUT_BG = '#E0F2FE';
 
 const getCurrentTimeString = () => {
     return new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -131,13 +131,13 @@ const RegularShiftPage = () => {
         }
     };
 
-    const inputClass = "w-full h-12 px-4 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#446F41]";
+    const inputClass = "w-full h-12 px-4 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7]";
     const labelClass = "block text-sm font-semibold mb-1";
 
     if (pageLoading) {
         return (
             <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">
-                <p style={{ color: BRAND_GREEN }} className="text-xl font-bold">טוען...</p>
+                <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">טוען...</p>
             </div>
         );
     }
@@ -145,13 +145,13 @@ const RegularShiftPage = () => {
     if (success) {
         return (
             <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen flex-col items-center justify-center p-6" dir="rtl">
-                <CheckCircle size={64} style={{ color: BRAND_GREEN }} className="mb-6" />
-                <h2 className="text-2xl font-bold mb-2" style={{ color: BRAND_GREEN }}>המשמרת הסתיימה בהצלחה!</h2>
+                <CheckCircle size={64} style={{ color: BRAND_BLUE }} className="mb-6" />
+                <h2 className="text-2xl font-bold mb-2" style={{ color: BRAND_BLUE }}>המשמרת הסתיימה בהצלחה!</h2>
                 <p className="text-gray-500 mb-8">הדיווח תועד במערכת</p>
                 <button
                     onClick={() => router.push('/Browser')}
                     className="px-8 py-3 rounded-xl text-white text-lg font-bold transition hover:opacity-90"
-                    style={{ backgroundColor: BRAND_GREEN }}
+                    style={{ backgroundColor: BRAND_BLUE }}
                 >
                     חזרה לפאנל
                 </button>
@@ -167,7 +167,7 @@ const RegularShiftPage = () => {
                     else router.push('/Browser');
                 }}
                 className="absolute top-6 right-6 flex items-center gap-2 font-bold hover:opacity-70 transition z-10"
-                style={{ color: BRAND_GREEN }}
+                style={{ color: BRAND_BLUE }}
             >
                 <ArrowRight size={22} />
                 <span>חזרה</span>
@@ -175,7 +175,7 @@ const RegularShiftPage = () => {
 
             {/* Header */}
             <div className="flex items-center justify-center mb-8 max-w-md mx-auto pt-14">
-                <h1 className="text-2xl font-bold" style={{ color: BRAND_GREEN }}>מודל קבוע</h1>
+                <h1 className="text-2xl font-bold" style={{ color: BRAND_BLUE }}>מודל קבוע</h1>
             </div>
 
             {errorMsg && (
@@ -189,14 +189,14 @@ const RegularShiftPage = () => {
                 <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center" dir="rtl">
                         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Check size={32} style={{ color: BRAND_GREEN }} />
+                            <Check size={32} style={{ color: BRAND_BLUE }} />
                         </div>
-                        <h2 className="text-2xl font-bold mb-2" style={{ color: BRAND_GREEN }}>כניסה אושרה</h2>
+                        <h2 className="text-2xl font-bold mb-2" style={{ color: BRAND_BLUE }}>כניסה אושרה</h2>
                         <p className="text-gray-600 mb-6">שעת כניסה למשמרת: <strong>{clockedInTime}</strong></p>
                         <button
                             onClick={() => setShowClockInPopup(false)}
                             className="w-full py-3 rounded-xl text-white font-bold transition hover:opacity-90"
-                            style={{ backgroundColor: BRAND_GREEN }}
+                            style={{ backgroundColor: BRAND_BLUE }}
                         >
                             אישור
                         </button>
@@ -221,7 +221,7 @@ const RegularShiftPage = () => {
                             onClick={handleClockIn}
                             disabled={loading || activeShift !== null}
                             className="flex-1 h-32 text-white text-2xl font-bold rounded-2xl shadow-lg transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2"
-                            style={{ backgroundColor: BRAND_GREEN }}
+                            style={{ backgroundColor: BRAND_BLUE }}
                         >
                             <Clock size={32} />
                             <span>{loading && !activeShift ? 'טוען...' : 'כניסה'}</span>
@@ -244,46 +244,46 @@ const RegularShiftPage = () => {
                     <div className="bg-white p-4 rounded-xl shadow-sm border mb-2 flex justify-between items-center">
                         <div>
                             <p className="text-sm text-gray-500 font-bold mb-1">תאריך</p>
-                            <p className="text-lg font-bold" style={{ color: BRAND_GREEN }}>{activeShift?.date}</p>
+                            <p className="text-lg font-bold" style={{ color: BRAND_BLUE }}>{activeShift?.date}</p>
                         </div>
                         <div className="text-left">
                             <p className="text-sm text-gray-500 font-bold mb-1">שעת כניסה</p>
-                            <p className="text-lg font-bold" style={{ color: BRAND_GREEN }}>{activeShift?.startTime}</p>
+                            <p className="text-lg font-bold" style={{ color: BRAND_BLUE }}>{activeShift?.startTime}</p>
                         </div>
                     </div>
 
                     <div>
-                        <label className={labelClass} style={{ color: BRAND_GREEN }}>שעת סיום</label>
+                        <label className={labelClass} style={{ color: BRAND_BLUE }}>שעת סיום</label>
                         <input
                             type="time"
                             className={inputClass}
-                            style={{ backgroundColor: INPUT_BG, color: BRAND_GREEN }}
+                            style={{ backgroundColor: INPUT_BG, color: BRAND_BLUE }}
                             value={endTime}
                             onChange={(e) => setEndTime(e.target.value)}
                         />
                     </div>
 
                     <div>
-                        <label className={labelClass} style={{ color: BRAND_GREEN }}>הערות</label>
+                        <label className={labelClass} style={{ color: BRAND_BLUE }}>הערות</label>
                         <textarea
                             rows={3}
                             placeholder="הערות אופציונליות..."
-                            className="w-full px-4 py-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#446F41] resize-none"
-                            style={{ backgroundColor: INPUT_BG, color: BRAND_GREEN }}
+                            className="w-full px-4 py-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] resize-none"
+                            style={{ backgroundColor: INPUT_BG, color: BRAND_BLUE }}
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
                         />
                     </div>
 
                     {/* Verification */}
-                    <div className="bg-white rounded-xl border-2 p-5 mt-2" style={{ borderColor: BRAND_GREEN }}>
-                        <p className="font-bold text-center mb-4" style={{ color: BRAND_GREEN }}>האם הפרטים שהזנת נכונים?</p>
+                    <div className="bg-white rounded-xl border-2 p-5 mt-2" style={{ borderColor: BRAND_BLUE }}>
+                        <p className="font-bold text-center mb-4" style={{ color: BRAND_BLUE }}>האם הפרטים שהזנת נכונים?</p>
                         <div className="flex gap-4 justify-center">
                             <button
                                 type="button"
                                 onClick={() => { setConfirmed(true); setConfirmError(''); }}
                                 className="flex-1 h-12 rounded-xl font-bold text-lg border-2 transition"
-                                style={confirmed === true ? { backgroundColor: BRAND_GREEN, color: 'white', borderColor: BRAND_GREEN } : { backgroundColor: 'white', color: BRAND_GREEN, borderColor: BRAND_GREEN }}
+                                style={confirmed === true ? { backgroundColor: BRAND_BLUE, color: 'white', borderColor: BRAND_BLUE } : { backgroundColor: 'white', color: BRAND_BLUE, borderColor: BRAND_BLUE }}
                             >
                                 כן
                             </button>
@@ -304,7 +304,7 @@ const RegularShiftPage = () => {
                         type="submit"
                         disabled={loading || confirmed !== true}
                         className="w-full h-16 text-white text-xl font-bold rounded-xl transition hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed mt-2"
-                        style={{ backgroundColor: BRAND_GREEN }}
+                        style={{ backgroundColor: BRAND_BLUE }}
                     >
                         {loading ? 'שומר...' : 'סיום משמרת ושליחה'}
                     </button>

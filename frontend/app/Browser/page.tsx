@@ -3,11 +3,11 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Layers, Clock, ArrowRight, LogOut, Car } from 'lucide-react';
+import { Layers, Clock, ArrowRight, LogOut, Car } from 'lucide-react';
 
-const BRAND_GREEN = '#446F41';
+const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
-// ---- Types ----
+
 interface UserProfile {
     username: string;
     phone: string;
@@ -16,7 +16,6 @@ interface UserProfile {
     isRegularModel: boolean;
 }
 
-// ---- Component ----
 const EmployeePanelPage = () => {
     const router = useRouter();
 
@@ -40,8 +39,6 @@ const EmployeePanelPage = () => {
         verify();
     }, [router]);
 
-    // The "My Shifts" button now navigates to a dedicated page
-
     // ---- Logout ----
     const handleLogout = async () => {
         await fetch(`${API_BASE_URL}/logout`, { method: 'POST', credentials: 'include' });
@@ -54,7 +51,7 @@ const EmployeePanelPage = () => {
 
     if (loading) return (
         <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">
-            <p style={{ color: BRAND_GREEN }} className="text-xl font-bold">טוען...</p>
+            <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">טוען...</p>
         </div>
     );
 
@@ -63,7 +60,6 @@ const EmployeePanelPage = () => {
 
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
-                {/* Back Button */}
                 <button
                     id="backBtn"
                     onClick={() => {
@@ -71,15 +67,15 @@ const EmployeePanelPage = () => {
                         else handleLogout();
                     }}
                     className="flex items-center gap-2 font-bold hover:opacity-70 transition"
-                    style={{ color: BRAND_GREEN }}
+                    style={{ color: BRAND_BLUE }}
                 >
                     <ArrowRight size={22} />
                     <span>חזרה</span>
                 </button>
                 <div className="text-right">
-                    <h1 className="text-2xl font-bold" style={{ color: BRAND_GREEN }}>פאנל עובד</h1>
+                    <h1 className="text-2xl font-bold" style={{ color: BRAND_BLUE }}>פאנל עובד</h1>
                     {profile?.username && (
-                        <p className="text-sm opacity-60" style={{ color: BRAND_GREEN }}>שלום, {profile.username}</p>
+                        <p className="text-sm opacity-60" style={{ color: BRAND_BLUE }}>שלום, {profile.username}</p>
                     )}
                 </div>
             </div>
@@ -87,33 +83,16 @@ const EmployeePanelPage = () => {
             {/* Action Buttons */}
             <div className="flex flex-col gap-4 max-w-md mx-auto">
 
-                {/* My Assigned Shifts — always shown */}
-                {/* My Assigned Shifts — always shown */}
-                <div className="flex gap-4">
-                    <button
-                        id="myShiftsBtn"
-                        onClick={() => router.push('/MyShifts')}
-                        className={`flex-1 ${outlineBtn}`}
-                        style={{ borderColor: BRAND_GREEN, color: BRAND_GREEN, backgroundColor: 'white' }}
-                    >
-                        <span className="text-xl font-bold">משמרות מתוכננות</span>
-                        <div className="flex items-center gap-2">
-                            <Calendar size={26} />
-                        </div>
-                    </button>
-
-                    <button
-                        id="reportedShiftsBtn"
-                        onClick={() => router.push('/ReportedShifts')}
-                        className={`flex-1 ${outlineBtn}`}
-                        style={{ borderColor: BRAND_GREEN, color: BRAND_GREEN, backgroundColor: 'white' }}
-                    >
-                        <span className="text-xl font-bold">משמרות שדווחו</span>
-                        <div className="flex items-center gap-2">
-                            <Clock size={26} />
-                        </div>
-                    </button>
-                </div>
+                {/* Reported Shifts — view & edit all shifts */}
+                <button
+                    id="reportedShiftsBtn"
+                    onClick={() => router.push('/ReportedShifts')}
+                    className={outlineBtn}
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'white' }}
+                >
+                    <span className="text-xl font-bold">המשמרות שלי</span>
+                    <Clock size={26} />
+                </button>
 
                 {/* Flexible Model — only if isFlexibleModel is true */}
                 {profile?.isFlexibleModel && (
@@ -121,7 +100,7 @@ const EmployeePanelPage = () => {
                         id="flexibleModelBtn"
                         onClick={() => router.push('/FlexibleModel')}
                         className={primaryBtn}
-                        style={{ backgroundColor: BRAND_GREEN }}
+                        style={{ backgroundColor: BRAND_BLUE }}
                     >
                         <span className="text-xl font-bold">מודל גמיש</span>
                         <Layers size={28} className="opacity-80" />
@@ -134,7 +113,7 @@ const EmployeePanelPage = () => {
                         id="regularModelBtn"
                         onClick={() => router.push('/RegularShift')}
                         className={primaryBtn}
-                        style={{ backgroundColor: BRAND_GREEN }}
+                        style={{ backgroundColor: BRAND_BLUE }}
                     >
                         <span className="text-xl font-bold">מודל קבוע</span>
                         <Clock size={28} className="opacity-80" />
@@ -146,7 +125,7 @@ const EmployeePanelPage = () => {
                     id="drivingReportsBtn"
                     onClick={() => router.push('/DrivingReports')}
                     className={outlineBtn}
-                    style={{ borderColor: BRAND_GREEN, color: BRAND_GREEN, backgroundColor: 'white' }}
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'white' }}
                 >
                     <span className="text-xl font-bold">דוחות נסיעות</span>
                     <Car size={26} />

@@ -62,9 +62,12 @@ func SetupRouter(db domain.Registry) *gin.Engine {
 		auth.POST("/shifts/clock-in", clockInHandler(db))
 		auth.PUT("/shifts/clock-out", clockOutHandler(db))
 		auth.POST("/shifts/report", reportShiftHandler(db))
+		auth.PUT("/shifts/:id", updateShiftHandler(db))
+		auth.DELETE("/shifts/:id", deleteShiftHandler(db))
 		auth.POST("/driving-reports", submitDrivingReportHandler(db))
 		auth.GET("/driving-reports", getMyDrivingReportsHandler(db))
 		auth.GET("/driving-reports/:id/file", downloadDrivingReportFileHandler(db))
+		auth.PUT("/driving-reports/:id", updateDrivingReportHandler(db))
 	}
 
 	// --- Manager-Only Routes ---
@@ -73,10 +76,11 @@ func SetupRouter(db domain.Registry) *gin.Engine {
 	{
 		mgr.POST("/users", createUserHandler(db))
 		mgr.GET("/users/team", getTeamHandler(db))
-		mgr.POST("/shifts", assignShiftHandler(db))
-		mgr.DELETE("/shifts/:id", deleteShiftHandler(db))
+		mgr.PUT("/users/:id", updateEmployeeHandler(db))
+		mgr.DELETE("/users/:id", deleteEmployeeHandler(db))
 		mgr.GET("/manager/driving-reports", getTeamDrivingReportsHandler(db))
 		mgr.PUT("/manager/driving-reports/:id/approve", approveDrivingReportHandler(db))
+		mgr.GET("/manager/team/shifts", getTeamShiftsHandler(db))
 	}
 
 	return r
@@ -145,20 +149,13 @@ func requestOTPHandler(db domain.Registry) gin.HandlerFunc {
 
 		storeOTP(req.Phone, otp)
 
-		// Always log the OTP so it can be retrieved from server logs if email fails.
-		log.Printf("[OTP] phone=%s otp=%s email=%s\n", req.Phone, otp, user.Email)
-
 		if err := sendOTPEmail(user.Email, otp); err != nil {
 			log.Printf("ERROR: Failed to send OTP email to %s: %v\n", user.Email, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליחת הקוד לאימייל"})
 			return
 		}
 
-		resp := gin.H{"message": "קוד נשלח לכתובת האימייל"}
-		if os.Getenv("SMTP_HOST") == "" {
-			resp["devOtp"] = otp
-		}
-		c.JSON(http.StatusOK, resp)
+		c.JSON(http.StatusOK, gin.H{"message": "קוד נשלח לכתובת האימייל"})
 	}
 }
 
@@ -206,7 +203,7 @@ func logoutHandler() gin.HandlerFunc {
 	}
 }
 
-// GET /me — returns the current user's profile (password excluded via json:"-")
+// GET /me — returns the current user's profile
 func meHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		phone := c.GetString("phone")
@@ -243,12 +240,29 @@ func createUserHandler(db domain.Registry) gin.HandlerFunc {
 		}
 		req.Password = hashed
 
-		// DirectManager is always the logged-in manager's phone — not trusted from client
-		req.DirectManager = c.GetString("phone")
+		// Fetch manager record to set DirectManager ID
+		managerPhone := c.GetString("phone")
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
+			return
+		}
+		req.DirectManager = manager.ID
 
 		if err := db.Users().Create(&req); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביצירת המשתמש"})
 			return
+		}
+
+		// Create active manager assignment history record
+		history := models.EmployeeManagerHistory{
+			EmployeeIndex: req.ID,
+			ManagerIndex:  manager.ID,
+			StartDate:     time.Now().Format("02/01/2006"),
+			EndDate:       nil,
+		}
+		if err := db.EmployeeManagerHistories().Create(&history); err != nil {
+			log.Printf("ERROR: Failed to create employee manager history record: %v\n", err)
 		}
 
 		c.JSON(http.StatusCreated, gin.H{"message": "משתמש נוצר בהצלחה"})
@@ -259,7 +273,12 @@ func createUserHandler(db domain.Registry) gin.HandlerFunc {
 func getTeamHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		managerPhone := c.GetString("phone")
-		users, err := db.Users().GetByDirectManager(managerPhone)
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
+			return
+		}
+		users, err := db.Users().GetByDirectManagerID(manager.ID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת רשימת העובדים"})
 			return
@@ -268,50 +287,6 @@ func getTeamHandler(db domain.Registry) gin.HandlerFunc {
 			users[i].Password = ""
 		}
 		c.JSON(http.StatusOK, users)
-	}
-}
-
-// POST /shifts — manager assigns a shift to a team member (or themselves)
-func assignShiftHandler(db domain.Registry) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var req models.Shift
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "קלט לא תקין"})
-			return
-		}
-
-		managerPhone := c.GetString("phone")
-
-		// Security: only allow assigning to own team members or to themselves
-		if req.AssignedTo != managerPhone {
-			team, err := db.Users().GetByDirectManager(managerPhone)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בגישה לרשימת העובדים"})
-				return
-			}
-			isTeamMember := false
-			for _, member := range team {
-				if member.Phone == req.AssignedTo {
-					isTeamMember = true
-					break
-				}
-			}
-			if !isTeamMember {
-				c.JSON(http.StatusForbidden, gin.H{"error": "ניתן להקצות משמרות רק לעובדים תחת ניהולך"})
-				return
-			}
-		}
-
-		// AssignedBy is always the server-side logged-in manager's phone
-		req.AssignedBy = managerPhone
-		req.Type = "planned"
-
-		if err := db.Shifts().Create(&req); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביצירת המשמרת"})
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{"message": "משמרת הוקצתה בהצלחה"})
 	}
 }
 
@@ -328,7 +303,61 @@ func getMyShiftsHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// DELETE /shifts/:id — manager deletes a shift they assigned
+// PUT /shifts/:id — Edit a shift (owner or manager)
+func updateShiftHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "מזהה משמרת לא תקין"})
+			return
+		}
+
+		var req struct {
+			Date      string `json:"date"`
+			StartTime string `json:"startTime"`
+			EndTime   string `json:"endTime"`
+			Notes     string `json:"notes"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "קלט לא תקין"})
+			return
+		}
+
+		shift, err := db.Shifts().GetByID(uint(id))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "משמרת לא נמצאה"})
+			return
+		}
+
+		phone := c.GetString("phone")
+		user, err := db.Users().GetByPhone(phone)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה"})
+			return
+		}
+
+		isOwner := shift.AssignedTo == phone
+		isManager := user.Role == models.RoleManager
+		if !isOwner && !isManager {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה לערוך משמרת זו"})
+			return
+		}
+
+		shift.Date = req.Date
+		shift.StartTime = req.StartTime
+		shift.EndTime = req.EndTime
+		shift.Notes = req.Notes
+
+		if err := db.Shifts().Update(shift); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בעדכון המשמרת"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "משמרת עודכנה בהצלחה"})
+	}
+}
+
+// DELETE /shifts/:id — delete a shift (owner or manager)
 func deleteShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
@@ -337,23 +366,22 @@ func deleteShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		managerPhone := c.GetString("phone")
-
-		// Verify the shift was assigned by this manager before deleting
-		shifts, err := db.Shifts().GetByAssignedBy(managerPhone)
+		shift, err := db.Shifts().GetByID(uint(id))
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בגישה למשמרות"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "משמרת לא נמצאה"})
 			return
 		}
 
-		found := false
-		for _, s := range shifts {
-			if s.ID == uint(id) {
-				found = true
-				break
-			}
+		phone := c.GetString("phone")
+		user, err := db.Users().GetByPhone(phone)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה"})
+			return
 		}
-		if !found {
+
+		isOwner := shift.AssignedTo == phone
+		isManager := user.Role == models.RoleManager
+		if !isOwner && !isManager {
 			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה למחוק משמרת זו"})
 			return
 		}
@@ -378,7 +406,6 @@ func reportShiftHandler(db domain.Registry) gin.HandlerFunc {
 
 		phone := c.GetString("phone")
 
-		// Both fields are set server-side — the employee reports for themselves
 		req.AssignedTo = phone
 		req.AssignedBy = phone
 		req.Type = "reported"
@@ -409,7 +436,7 @@ func getCurrentShiftHandler(db domain.Registry) gin.HandlerFunc {
 func clockInHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		phone := c.GetString("phone")
-		
+
 		// Check if already clocked in
 		_, err := db.Shifts().GetActiveShift(phone)
 		if err == nil {
@@ -428,7 +455,7 @@ func clockInHandler(db domain.Registry) gin.HandlerFunc {
 		}
 
 		if err := db.Shifts().Create(&shift); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בכניסה למשמרת"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בכנסה למשמרת"})
 			return
 		}
 		c.JSON(http.StatusCreated, shift)
@@ -439,7 +466,7 @@ func clockInHandler(db domain.Registry) gin.HandlerFunc {
 func clockOutHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		phone := c.GetString("phone")
-		
+
 		var req struct {
 			EndTime string `json:"endTime"`
 			Notes   string `json:"notes"`
@@ -579,11 +606,66 @@ func downloadDrivingReportFileHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
+// PUT /driving-reports/:id — Edit a driving report (owner or manager)
+func updateDrivingReportHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "מזהה דוח לא תקין"})
+			return
+		}
+
+		var req struct {
+			Description string  `json:"description"`
+			TotalCost   float64 `json:"totalCost"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "קלט לא תקין"})
+			return
+		}
+
+		report, err := db.DrivingReports().GetByID(uint(id))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "דוח לא נמצא"})
+			return
+		}
+
+		phone := c.GetString("phone")
+		user, err := db.Users().GetByPhone(phone)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה"})
+			return
+		}
+
+		isOwner := report.UserPhone == phone
+		isManager := user.Role == models.RoleManager
+		if !isOwner && !isManager {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה לערוך דוח זה"})
+			return
+		}
+
+		report.Description = req.Description
+		report.TotalCost = req.TotalCost
+
+		if err := db.DrivingReports().Update(report); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בעדכון הדוח"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "הדוח עודכן בהצלחה"})
+	}
+}
+
 // GET /manager/driving-reports/team — Manager gets all team driving reports
 func getTeamDrivingReportsHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		managerPhone := c.GetString("phone")
-		teamMembers, err := db.Users().GetByDirectManager(managerPhone)
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
+			return
+		}
+		teamMembers, err := db.Users().GetByDirectManagerID(manager.ID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בטעינת הצוות"})
 			return
@@ -630,5 +712,163 @@ func approveDrivingReportHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{"message": "הדוח אושר בהצלחה"})
+	}
+}
+
+// GET /manager/team/shifts — Manager gets shifts for employees they manage, filtered by history.
+func getTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		managerPhone := c.GetString("phone")
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
+			return
+		}
+
+		// Fetch history records for this manager
+		historyRecords, err := db.EmployeeManagerHistories().GetHistoryByManager(manager.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת היסטוריית הניהול"})
+			return
+		}
+
+		type shiftWithUser struct {
+			models.Shift
+			EmployeeName string `json:"employeeName"`
+		}
+		var result []shiftWithUser
+
+		for _, record := range historyRecords {
+			employee, err := db.Users().GetByID(record.EmployeeIndex)
+			if err != nil {
+				continue
+			}
+
+			var endDate string
+			if record.EndDate != nil {
+				endDate = *record.EndDate
+			}
+
+			shifts, err := db.Shifts().GetByAssignedToInDateRange(employee.Phone, record.StartDate, endDate)
+			if err != nil {
+				continue
+			}
+
+			for _, s := range shifts {
+				result = append(result, shiftWithUser{
+					Shift:        s,
+					EmployeeName: employee.FullName,
+				})
+			}
+		}
+
+		c.JSON(http.StatusOK, result)
+	}
+}
+
+// PUT /users/:id — Manager updates their employee's details
+func updateEmployeeHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idStr := c.Param("id")
+		id64, err := strconv.ParseUint(idStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "מזהה משתמש לא תקין"})
+			return
+		}
+		userID := uint(id64)
+
+		var req models.User
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "קלט לא תקין"})
+			return
+		}
+
+		targetUser, err := db.Users().GetByID(userID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "עובד לא נמצא"})
+			return
+		}
+
+		managerPhone := c.GetString("phone")
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
+			return
+		}
+
+		if targetUser.DirectManager != manager.ID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין לך הרשאה לערוך משתמש זה"})
+			return
+		}
+
+		if !add_user_validation.UpdateUserValidation(c, &req, userID, db) {
+			return
+		}
+
+		targetUser.FullName = req.FullName
+		targetUser.Username = req.Username
+		targetUser.Email = req.Email
+		targetUser.Phone = req.Phone
+		targetUser.IsFlexibleModel = req.IsFlexibleModel
+		targetUser.IsRegularModel = req.IsRegularModel
+
+		if strings.TrimSpace(req.Password) != "" {
+			hashed, err := HashPassword(req.Password)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בהצפנת הסיסמה"})
+				return
+			}
+			targetUser.Password = hashed
+		}
+
+		if err := db.Users().Update(targetUser); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בעדכון פרטי העובד"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "פרטי העובד עודכנו בהצלחה"})
+	}
+}
+
+// DELETE /users/:id — Manager deletes an employee
+func deleteEmployeeHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idStr := c.Param("id")
+		id64, err := strconv.ParseUint(idStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "מזהה משתמש לא תקין"})
+			return
+		}
+		userID := uint(id64)
+
+		targetUser, err := db.Users().GetByID(userID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "עובד לא נמצא"})
+			return
+		}
+
+		managerPhone := c.GetString("phone")
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
+			return
+		}
+
+		if targetUser.DirectManager != manager.ID {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין לך הרשאה למחוק משתמש זה"})
+			return
+		}
+
+		// Close any active manager assignments in history by setting end_date to now
+		if err := db.EmployeeManagerHistories().CloseActiveRecord(userID, time.Now().Format("02/01/2006")); err != nil {
+			log.Printf("ERROR: Failed to close active manager history on deletion: %v\n", err)
+		}
+
+		if err := db.Users().Delete(userID); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה במחיקת העובד"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "העובד נמחק בהצלחה"})
 	}
 }
