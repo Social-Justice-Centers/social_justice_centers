@@ -10,10 +10,6 @@ jest.mock('../config', () => ({ API_BASE_URL: 'http://mock-api' }));
 const okJson = (data: unknown) => ({ ok: true, json: jest.fn().mockResolvedValue(data) });
 
 const managerProfile = { username: 'Test Manager', phone: '0505656888', role: 'manager', isFlexibleModel: false, isRegularModel: false };
-const teamData = [
-  { id: 2, username: 'עובד א', phone: '0501111111', isFlexibleModel: true, isRegularModel: false },
-  { id: 3, username: 'עובד ב', phone: '0502222222', isFlexibleModel: false, isRegularModel: true },
-];
 
 describe('ManagerPage', () => {
   beforeEach(() => { jest.clearAllMocks(); global.fetch = jest.fn(); });
@@ -24,13 +20,15 @@ describe('ManagerPage', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/'));
   });
 
-  test('Renders all three action buttons', async () => {
+  test('Renders all action buttons', async () => {
     (global.fetch as jest.Mock).mockResolvedValue(okJson(managerProfile));
     render(<ManagerPage />);
     await waitFor(() => {
       expect(screen.getByText('הוספת עובד')).toBeInTheDocument();
       expect(screen.getByText('העובדים שלי')).toBeInTheDocument();
-      expect(screen.getByText('הקצאת משמרת')).toBeInTheDocument();
+      expect(screen.getByText('משמרות הצוות')).toBeInTheDocument();
+      expect(screen.getByText('אישור דוחות נסיעות')).toBeInTheDocument();
+      expect(screen.getByText('ייצוא נתונים למיכפל')).toBeInTheDocument();
     });
   });
 
@@ -50,71 +48,30 @@ describe('ManagerPage', () => {
     expect(mockPush).toHaveBeenCalledWith('/ManagerMenu');
   });
 
-  test('"העובדים שלי" fetches and displays team members', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson(teamData));
+  test('Opens export modal on "ייצוא נתונים למיכפל" click and closes it', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(okJson(managerProfile));
     render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('העובדים שלי')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /העובדים שלי/ }));
-    await waitFor(() => expect(screen.getByText('עובד א')).toBeInTheDocument());
-    expect(screen.getByText('עובד ב')).toBeInTheDocument();
-  });
+    
+    await waitFor(() => expect(screen.getByText('ייצוא נתונים למיכפל')).toBeInTheDocument());
+    
+    // The modal should not be visible initially
+    expect(screen.queryByText('אפשרות זו נמצאת כעת בפיתוח ותהיה זמינה בקרוב!')).not.toBeInTheDocument();
 
-  test('Shows empty state when team is empty', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson([]));
-    render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('העובדים שלי')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /העובדים שלי/ }));
-    await waitFor(() => expect(screen.getByText('אין עובדים תחת ניהולך עדיין')).toBeInTheDocument());
-  });
+    // Click the export button
+    fireEvent.click(screen.getByRole('button', { name: /ייצוא נתונים למיכפל/ }));
 
-  test('Opens shift modal on "הקצאת משמרת" click', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson(teamData));
-    render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('הקצאת משמרת')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /הקצאת משמרת/ }));
-    await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument());
-  });
+    // The modal should appear
+    await waitFor(() => {
+      expect(screen.getByText('אפשרות זו נמצאת כעת בפיתוח ותהיה זמינה בקרוב!')).toBeInTheDocument();
+    });
 
-  test('Shows error when submitting without selecting employee', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson(teamData));
-    render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('הקצאת משמרת')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /הקצאת משמרת/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /הקצה משמרת/ })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /הקצה משמרת/ }));
-    await waitFor(() => expect(screen.getByText('נא לבחור עובד')).toBeInTheDocument());
-  });
+    // Click close button inside modal
+    const closeBtn = screen.getByRole('button', { name: /הבנתי, תודה/ });
+    fireEvent.click(closeBtn);
 
-  test('Calls POST /shifts when form is valid', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson(teamData))
-      .mockResolvedValueOnce(okJson({ message: 'משמרת הוקצתה בהצלחה' }));
-
-    render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('הקצאת משמרת')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /הקצאת משמרת/ }));
-    await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument());
-
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: '0505656888' } });
-    const timeInputs = document.querySelectorAll('input[type="time"]');
-    fireEvent.change(timeInputs[0], { target: { value: '09:00' } });
-    fireEvent.change(timeInputs[1], { target: { value: '17:00' } });
-    fireEvent.click(screen.getByRole('button', { name: /הקצה משמרת/ }));
-
-    await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/shifts'),
-        expect.objectContaining({ method: 'POST' })
-      )
-    );
+    // Modal should disappear
+    await waitFor(() => {
+      expect(screen.queryByText('אפשרות זו נמצאת כעת בפיתוח ותהיה זמינה בקרוב!')).not.toBeInTheDocument();
+    });
   });
 });
