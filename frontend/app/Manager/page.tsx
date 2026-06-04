@@ -134,7 +134,7 @@ const ManagerPage = () => {
                             </div>
                             <h2 className="text-2xl font-bold" style={{ color: BRAND_BLUE }}>ייצוא נתונים למיכפל</h2>
                             <p className="text-gray-600 font-medium text-base leading-relaxed px-2">
-                                כאן תוכלו לייצא נתוני נוכחות ושכר של עובדים בפורמט התואם לתוכנת השכר "מיכפל".
+                                כאן תוכלו לייצא נתוני נוכחות ושכר של עובדים בפורמט התואם לתוכנת השכר &quot;מיכפל&quot;.
                                 <br />
                                 <span className="font-semibold text-sm text-[#0284C7] mt-2 block">
                                     אפשרות זו נמצאת כעת בפיתוח ותהיה זמינה בקרוב!
