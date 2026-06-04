@@ -55,9 +55,15 @@ describe('ManagerPage', () => {
   });
 
   test('Opens export modal and triggers file download with selected parameters', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile)) // profile verify
-      .mockResolvedValueOnce(okBlob());              // export fetch
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/me')) {
+        return Promise.resolve(okJson(managerProfile));
+      }
+      if (url.includes('/manager/export/michpal')) {
+        return Promise.resolve(okBlob());
+      }
+      return Promise.reject(new Error(`Unhandled fetch call: ${url}`));
+    });
 
     render(<ManagerPage />);
     
@@ -78,34 +84,37 @@ describe('ManagerPage', () => {
     fireEvent.change(yearSelect, { target: { value: '2026' } });
 
     // Mock document.createElement and click trigger
+    const originalCreateElement = document.createElement.bind(document);
     const mockClick = jest.fn();
     const mockAnchor = { click: mockClick, href: '', download: '' };
     const spyCreate = jest.spyOn(document, 'createElement').mockImplementation((tagName) => {
       if (tagName === 'a') return mockAnchor as unknown as HTMLAnchorElement;
-      return document.createElement(tagName);
+      return originalCreateElement(tagName);
     });
     const spyAppend = jest.spyOn(document.body, 'appendChild').mockImplementation(() => ({} as unknown as Node));
     const spyRemove = jest.spyOn(document.body, 'removeChild').mockImplementation(() => ({} as unknown as Node));
 
-    // Click download button
-    const downloadBtn = screen.getByRole('button', { name: 'הורד קובץ XLS' });
-    fireEvent.click(downloadBtn);
+    try {
+      // Click download button
+      const downloadBtn = screen.getByRole('button', { name: 'הורד קובץ XLS' });
+      fireEvent.click(downloadBtn);
 
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/manager/export/michpal?month=05&year=2026'),
-        expect.objectContaining({ credentials: 'include' })
-      );
-    });
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('/manager/export/michpal?month=05&year=2026'),
+          expect.objectContaining({ credentials: 'include' })
+        );
+      });
 
-    await waitFor(() => {
-      expect(mockClick).toHaveBeenCalled();
-      expect(mockAnchor.download).toBe('michpal_export_2026_05.xls');
-    });
-
-    spyCreate.mockRestore();
-    spyAppend.mockRestore();
-    spyRemove.mockRestore();
+      await waitFor(() => {
+        expect(mockClick).toHaveBeenCalled();
+        expect(mockAnchor.download).toBe('michpal_export_2026_05.xls');
+      });
+    } finally {
+      spyCreate.mockRestore();
+      spyAppend.mockRestore();
+      spyRemove.mockRestore();
+    }
   });
 
   test('Closes export modal on cancel or close click', async () => {
