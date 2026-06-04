@@ -922,16 +922,28 @@ func exportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 			if err == nil {
 				for _, s := range shifts {
 					// Date format: DD/MM/YYYY
-					if len(s.Date) == 10 && s.Date[3:5] == month && s.Date[6:10] == year && s.EndTime != "" && s.Type == "reported" {
-						// Parse StartTime & EndTime
-						startMins, err1 := parseTimeToMinutes(s.StartTime)
-						endMins, err2 := parseTimeToMinutes(s.EndTime)
-						if err1 == nil && err2 == nil {
-							diff := endMins - startMins
-							if diff < 0 {
-								diff += 24 * 60 // Overnight shift
+					if len(s.Date) == 10 && s.Date[3:5] == month && s.Date[6:10] == year && s.Type == "reported" {
+						if s.EndTime != "" {
+							// Parse StartTime & EndTime
+							startMins, err1 := parseTimeToMinutes(s.StartTime)
+							endMins, err2 := parseTimeToMinutes(s.EndTime)
+							if err1 == nil && err2 == nil {
+								diff := endMins - startMins
+								if diff < 0 {
+									diff += 24 * 60 // Overnight shift
+								}
+								totalHours += float64(diff) / 60.0
 							}
-							totalHours += float64(diff) / 60.0
+						} else {
+							// Flexible shifts (e.g. reported via day option which might have empty EndTime)
+							switch s.WorkDuration {
+							case "full", "one day":
+								totalHours += 8.0
+							case "half", "half day":
+								totalHours += 4.0
+							case "sick", "sick day":
+								totalHours += 8.0
+							}
 						}
 					}
 				}
