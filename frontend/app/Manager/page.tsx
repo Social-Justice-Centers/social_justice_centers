@@ -186,7 +186,7 @@ const ManagerPage = () => {
                         <div className="mt-6 space-y-4 text-right">
                             <div className="flex gap-4">
                                 <div className="flex-1">
-                                    <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>חודש דיווח</label>
+                                    <label htmlFor="exportMonthSelect" className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>חודש דיווח</label>
                                     <select
                                         id="exportMonthSelect"
                                         className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] font-semibold text-sm bg-white"
@@ -210,7 +210,7 @@ const ManagerPage = () => {
                                     </select>
                                 </div>
                                 <div className="flex-1">
-                                    <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>שנת מס</label>
+                                    <label htmlFor="exportYearSelect" className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>שנת מס</label>
                                     <select
                                         id="exportYearSelect"
                                         className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] font-semibold text-sm bg-white"
