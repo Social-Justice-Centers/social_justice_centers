@@ -47,7 +47,7 @@ const ManagerPage = () => {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             setShowExportModal(false);
-        } catch (err) {
+        } catch {
             setExportError('שגיאת תקשורת עם השרת');
         } finally {
             setIsExporting(false);

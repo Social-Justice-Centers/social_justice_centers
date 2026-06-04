@@ -81,11 +81,11 @@ describe('ManagerPage', () => {
     const mockClick = jest.fn();
     const mockAnchor = { click: mockClick, href: '', download: '' };
     const spyCreate = jest.spyOn(document, 'createElement').mockImplementation((tagName) => {
-      if (tagName === 'a') return mockAnchor as any;
+      if (tagName === 'a') return mockAnchor as unknown as HTMLAnchorElement;
       return document.createElement(tagName);
     });
-    const spyAppend = jest.spyOn(document.body, 'appendChild').mockImplementation(() => ({} as any));
-    const spyRemove = jest.spyOn(document.body, 'removeChild').mockImplementation(() => ({} as any));
+    const spyAppend = jest.spyOn(document.body, 'appendChild').mockImplementation(() => ({} as unknown as Node));
+    const spyRemove = jest.spyOn(document.body, 'removeChild').mockImplementation(() => ({} as unknown as Node));
 
     // Click download button
     const downloadBtn = screen.getByRole('button', { name: 'הורד קובץ XLS' });
