@@ -3,7 +3,7 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, ArrowRight, Car, Users } from 'lucide-react';
+import { UserPlus, ArrowRight, Car, Users, Download, X } from 'lucide-react';
 
 const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
@@ -12,6 +12,7 @@ const BG_CREAM = '#FFFFFF';
 const ManagerPage = () => {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [showExportModal, setShowExportModal] = useState(false);
 
     // ---- Session Guard ----
     useEffect(() => {
@@ -100,7 +101,60 @@ const ManagerPage = () => {
                     <Car size={28} />
                 </button>
 
+                {/* Export Data */}
+                <button
+                    id="exportBtn"
+                    onClick={() => setShowExportModal(true)}
+                    className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md border-2 transition-all hover:opacity-80 active:scale-95"
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'white' }}
+                >
+                    <span className="text-xl font-bold">ייצוא נתונים למיכפל</span>
+                    <Download size={28} />
+                </button>
+
             </div>
+
+            {/* Export Modal Backdrop */}
+            {showExportModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                    {/* Modal Content */}
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative text-center" dir="rtl">
+                        <button
+                            id="closeExportModalBtn"
+                            onClick={() => setShowExportModal(false)}
+                            className="absolute top-4 left-4 p-1 rounded-full hover:bg-gray-100 transition"
+                            style={{ color: BRAND_BLUE }}
+                        >
+                            <X size={24} />
+                        </button>
+
+                        <div className="flex flex-col items-center gap-4 mt-4">
+                            <div className="p-3 bg-sky-100 rounded-full text-[#0284C7] mb-2">
+                                <Download size={40} />
+                            </div>
+                            <h2 className="text-2xl font-bold" style={{ color: BRAND_BLUE }}>ייצוא נתונים למיכפל</h2>
+                            <p className="text-gray-600 font-medium text-base leading-relaxed px-2">
+                                כאן תוכלו לייצא נתוני נוכחות ושכר של עובדים בפורמט התואם לתוכנת השכר "מיכפל".
+                                <br />
+                                <span className="font-semibold text-sm text-[#0284C7] mt-2 block">
+                                    אפשרות זו נמצאת כעת בפיתוח ותהיה זמינה בקרוב!
+                                </span>
+                            </p>
+                        </div>
+
+                        <div className="mt-8 flex gap-3">
+                            <button
+                                id="confirmExportModalBtn"
+                                onClick={() => setShowExportModal(false)}
+                                className="w-full h-12 flex items-center justify-center gap-2 text-white font-bold rounded-xl transition hover:opacity-90"
+                                style={{ backgroundColor: BRAND_BLUE }}
+                            >
+                                הבנתי, תודה
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
