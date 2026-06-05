@@ -8,15 +8,17 @@ jest.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('../config', () => ({ API_BASE_URL: 'http://mock-api' }));
 
 const okJson = (data: unknown) => ({ ok: true, json: jest.fn().mockResolvedValue(data) });
+const okBlob = () => ({ ok: true, blob: jest.fn().mockResolvedValue(new Blob()) });
 
 const managerProfile = { username: 'Test Manager', phone: '0505656888', role: 'manager', isFlexibleModel: false, isRegularModel: false };
-const teamData = [
-  { id: 2, username: 'עובד א', phone: '0501111111', isFlexibleModel: true, isRegularModel: false },
-  { id: 3, username: 'עובד ב', phone: '0502222222', isFlexibleModel: false, isRegularModel: true },
-];
 
 describe('ManagerPage', () => {
-  beforeEach(() => { jest.clearAllMocks(); global.fetch = jest.fn(); });
+  beforeEach(() => {
+    jest.clearAllMocks();
+    global.fetch = jest.fn();
+    window.URL.createObjectURL = jest.fn().mockReturnValue('blob:mock-url');
+    window.URL.revokeObjectURL = jest.fn();
+  });
 
   test('Redirects to / when not logged in', async () => {
     (global.fetch as jest.Mock).mockResolvedValue({ ok: false, json: jest.fn().mockResolvedValue({}) });
@@ -24,13 +26,15 @@ describe('ManagerPage', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/'));
   });
 
-  test('Renders all three action buttons', async () => {
+  test('Renders all action buttons', async () => {
     (global.fetch as jest.Mock).mockResolvedValue(okJson(managerProfile));
     render(<ManagerPage />);
     await waitFor(() => {
       expect(screen.getByText('הוספת עובד')).toBeInTheDocument();
       expect(screen.getByText('העובדים שלי')).toBeInTheDocument();
-      expect(screen.getByText('הקצאת משמרת')).toBeInTheDocument();
+      expect(screen.getByText('משמרות הצוות')).toBeInTheDocument();
+      expect(screen.getByText('אישור דוחות נסיעות')).toBeInTheDocument();
+      expect(screen.getByText('ייצוא נתונים למיכפל')).toBeInTheDocument();
     });
   });
 
@@ -50,71 +54,85 @@ describe('ManagerPage', () => {
     expect(mockPush).toHaveBeenCalledWith('/ManagerMenu');
   });
 
-  test('"העובדים שלי" fetches and displays team members', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson(teamData));
+  test('Opens export modal and triggers file download with selected parameters', async () => {
+    (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      if (url.includes('/me')) {
+        return Promise.resolve(okJson(managerProfile));
+      }
+      if (url.includes('/manager/export/michpal')) {
+        return Promise.resolve(okBlob());
+      }
+      return Promise.reject(new Error(`Unhandled fetch call: ${url}`));
+    });
+
     render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('העובדים שלי')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /העובדים שלי/ }));
-    await waitFor(() => expect(screen.getByText('עובד א')).toBeInTheDocument());
-    expect(screen.getByText('עובד ב')).toBeInTheDocument();
+    
+    await waitFor(() => expect(screen.getByText('ייצוא נתונים למיכפל')).toBeInTheDocument());
+    
+    // Open modal
+    fireEvent.click(screen.getByRole('button', { name: /ייצוא נתונים למיכפל/ }));
+
+    await waitFor(() => {
+      expect(screen.getByText('חודש דיווח')).toBeInTheDocument();
+    });
+
+    // Change Month and Year dropdowns
+    const monthSelect = screen.getByLabelText('חודש דיווח');
+    const yearSelect = screen.getByLabelText('שנת מס');
+
+    fireEvent.change(monthSelect, { target: { value: '05' } });
+    fireEvent.change(yearSelect, { target: { value: '2026' } });
+
+    // Mock document.createElement and click trigger
+    const originalCreateElement = document.createElement.bind(document);
+    const mockClick = jest.fn();
+    const mockAnchor = { click: mockClick, href: '', download: '' };
+    const spyCreate = jest.spyOn(document, 'createElement').mockImplementation((tagName) => {
+      if (tagName === 'a') return mockAnchor as unknown as HTMLAnchorElement;
+      return originalCreateElement(tagName);
+    });
+    const spyAppend = jest.spyOn(document.body, 'appendChild').mockImplementation(() => ({} as unknown as Node));
+    const spyRemove = jest.spyOn(document.body, 'removeChild').mockImplementation(() => ({} as unknown as Node));
+
+    try {
+      // Click download button
+      const downloadBtn = screen.getByRole('button', { name: 'הורד קובץ XLS' });
+      fireEvent.click(downloadBtn);
+
+      await waitFor(() => {
+        expect(global.fetch).toHaveBeenCalledWith(
+          expect.stringContaining('/manager/export/michpal?month=05&year=2026'),
+          expect.objectContaining({ credentials: 'include' })
+        );
+      });
+
+      await waitFor(() => {
+        expect(mockClick).toHaveBeenCalled();
+        expect(mockAnchor.download).toBe('michpal_export_2026_05.xls');
+      });
+    } finally {
+      spyCreate.mockRestore();
+      spyAppend.mockRestore();
+      spyRemove.mockRestore();
+    }
   });
 
-  test('Shows empty state when team is empty', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson([]));
+  test('Closes export modal on cancel or close click', async () => {
+    (global.fetch as jest.Mock).mockResolvedValue(okJson(managerProfile));
     render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('העובדים שלי')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /העובדים שלי/ }));
-    await waitFor(() => expect(screen.getByText('אין עובדים תחת ניהולך עדיין')).toBeInTheDocument());
-  });
+    
+    await waitFor(() => expect(screen.getByText('ייצוא נתונים למיכפל')).toBeInTheDocument());
+    
+    // Open modal
+    fireEvent.click(screen.getByRole('button', { name: /ייצוא נתונים למיכפל/ }));
+    await waitFor(() => expect(screen.getByText('חודש דיווח')).toBeInTheDocument());
 
-  test('Opens shift modal on "הקצאת משמרת" click', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson(teamData));
-    render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('הקצאת משמרת')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /הקצאת משמרת/ }));
-    await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument());
-  });
+    // Click cancel button
+    const cancelBtn = screen.getByRole('button', { name: 'ביטול' });
+    fireEvent.click(cancelBtn);
 
-  test('Shows error when submitting without selecting employee', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson(teamData));
-    render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('הקצאת משמרת')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /הקצאת משמרת/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /הקצה משמרת/ })).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /הקצה משמרת/ }));
-    await waitFor(() => expect(screen.getByText('נא לבחור עובד')).toBeInTheDocument());
-  });
-
-  test('Calls POST /shifts when form is valid', async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce(okJson(managerProfile))
-      .mockResolvedValueOnce(okJson(teamData))
-      .mockResolvedValueOnce(okJson({ message: 'משמרת הוקצתה בהצלחה' }));
-
-    render(<ManagerPage />);
-    await waitFor(() => expect(screen.getByText('הקצאת משמרת')).toBeInTheDocument());
-    fireEvent.click(screen.getByRole('button', { name: /הקצאת משמרת/ }));
-    await waitFor(() => expect(screen.getByRole('combobox')).toBeInTheDocument());
-
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: '0505656888' } });
-    const timeInputs = document.querySelectorAll('input[type="time"]');
-    fireEvent.change(timeInputs[0], { target: { value: '09:00' } });
-    fireEvent.change(timeInputs[1], { target: { value: '17:00' } });
-    fireEvent.click(screen.getByRole('button', { name: /הקצה משמרת/ }));
-
-    await waitFor(() =>
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.stringContaining('/shifts'),
-        expect.objectContaining({ method: 'POST' })
-      )
-    );
+    await waitFor(() => {
+      expect(screen.queryByText('חודש דיווח')).not.toBeInTheDocument();
+    });
   });
 });

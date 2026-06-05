@@ -3,7 +3,7 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, ArrowRight, Car, Users } from 'lucide-react';
+import { UserPlus, ArrowRight, Car, Users, Download, X } from 'lucide-react';
 
 const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
@@ -12,6 +12,47 @@ const BG_CREAM = '#FFFFFF';
 const ManagerPage = () => {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [showExportModal, setShowExportModal] = useState(false);
+
+    // Export Modal States
+    const [exportMonth, setExportMonth] = useState(() => {
+        const m = new Date().getMonth() + 1;
+        return m < 10 ? `0${m}` : `${m}`;
+    });
+    const [exportYear, setExportYear] = useState(() => new Date().getFullYear().toString());
+    const [exportError, setExportError] = useState('');
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportMichpal = async () => {
+        setIsExporting(true);
+        setExportError('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/manager/export/michpal?month=${exportMonth}&year=${exportYear}`, {
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                setExportError(data.error || 'שגיאה בייצוא הנתונים');
+                setIsExporting(false);
+                return;
+            }
+            // Trigger browser download
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `michpal_export_${exportYear}_${exportMonth}.xls`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            setShowExportModal(false);
+        } catch {
+            setExportError('שגיאת תקשורת עם השרת');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // ---- Session Guard ----
     useEffect(() => {
@@ -100,7 +141,124 @@ const ManagerPage = () => {
                     <Car size={28} />
                 </button>
 
+                {/* Export Data */}
+                <button
+                    id="exportBtn"
+                    onClick={() => setShowExportModal(true)}
+                    className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md border-2 transition-all hover:opacity-80 active:scale-95"
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'white' }}
+                >
+                    <span className="text-xl font-bold">ייצוא נתונים למיכפל</span>
+                    <Download size={28} />
+                </button>
+
             </div>
+
+            {/* Export Modal Backdrop */}
+            {showExportModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                    {/* Modal Content */}
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative text-center" dir="rtl">
+                        <button
+                            id="closeExportModalBtn"
+                            onClick={() => {
+                                setShowExportModal(false);
+                                setExportError('');
+                            }}
+                            className="absolute top-4 left-4 p-1 rounded-full hover:bg-gray-100 transition"
+                            style={{ color: BRAND_BLUE }}
+                            disabled={isExporting}
+                        >
+                            <X size={24} />
+                        </button>
+
+                        <div className="flex flex-col items-center gap-4 mt-4">
+                            <div className="p-3 bg-sky-100 rounded-full text-[#0284C7] mb-2">
+                                <Download size={40} />
+                            </div>
+                            <h2 className="text-2xl font-bold" style={{ color: BRAND_BLUE }}>ייצוא נתונים למיכפל</h2>
+                            <p className="text-gray-600 font-medium text-base leading-relaxed px-2">
+                                כאן תוכלו לייצא נתוני נוכחות ושכר של עובדים בפורמט התואם לתוכנת השכר &quot;מיכפל&quot;.
+                            </p>
+                        </div>
+
+                        {/* Selectors */}
+                        <div className="mt-6 space-y-4 text-right">
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label htmlFor="exportMonthSelect" className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>חודש דיווח</label>
+                                    <select
+                                        id="exportMonthSelect"
+                                        className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] font-semibold text-sm bg-white"
+                                        style={{ borderColor: '#E0F2FE', color: BRAND_BLUE }}
+                                        value={exportMonth}
+                                        onChange={(e) => setExportMonth(e.target.value)}
+                                        disabled={isExporting}
+                                    >
+                                        <option value="01">ינואר (01)</option>
+                                        <option value="02">פברואר (02)</option>
+                                        <option value="03">מרץ (03)</option>
+                                        <option value="04">אפריל (04)</option>
+                                        <option value="05">מאי (05)</option>
+                                        <option value="06">יוני (06)</option>
+                                        <option value="07">יולי (07)</option>
+                                        <option value="08">אוגוסט (08)</option>
+                                        <option value="09">ספטמבר (09)</option>
+                                        <option value="10">אוקטובר (10)</option>
+                                        <option value="11">נובמבר (11)</option>
+                                        <option value="12">דצמבר (12)</option>
+                                    </select>
+                                </div>
+                                <div className="flex-1">
+                                    <label htmlFor="exportYearSelect" className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>שנת מס</label>
+                                    <select
+                                        id="exportYearSelect"
+                                        className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] font-semibold text-sm bg-white"
+                                        style={{ borderColor: '#E0F2FE', color: BRAND_BLUE }}
+                                        value={exportYear}
+                                        onChange={(e) => setExportYear(e.target.value)}
+                                        disabled={isExporting}
+                                    >
+                                        <option value="2025">2025</option>
+                                        <option value="2026">2026</option>
+                                        <option value="2027">2027</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {exportError && (
+                            <div className="mt-4 bg-red-50 text-red-600 p-3 rounded-lg text-center font-semibold text-xs border border-red-200">
+                                {exportError}
+                            </div>
+                        )}
+
+                        <div className="mt-8 flex gap-3">
+                            <button
+                                id="confirmExportModalBtn"
+                                onClick={handleExportMichpal}
+                                disabled={isExporting}
+                                className="w-full h-12 flex items-center justify-center gap-2 text-white font-bold rounded-xl transition hover:opacity-90 disabled:opacity-50"
+                                style={{ backgroundColor: BRAND_BLUE }}
+                            >
+                                {isExporting ? 'מייצא קובץ...' : 'הורד קובץ XLS'}
+                            </button>
+                            <button
+                                id="cancelExportModalBtn"
+                                onClick={() => {
+                                    setShowExportModal(false);
+                                    setExportError('');
+                                }}
+                                disabled={isExporting}
+                                className="w-full h-12 flex items-center justify-center gap-2 font-bold rounded-xl border-2 transition hover:bg-gray-50 disabled:opacity-50"
+                                style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
+                            >
+                                ביטול
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

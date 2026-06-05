@@ -134,7 +134,7 @@ func (s *shiftStore) Delete(id uint) error {
 
 func (s *shiftStore) GetActiveShift(phone string) (*models.Shift, error) {
 	var activeShift models.Shift
-	err := s.db.Where("assigned_to = ? AND end_time = ?", phone, "").First(&activeShift).Error
+	err := s.db.Where("assigned_to = ? AND end_time = ? AND (work_duration = ? OR work_duration IS NULL)", phone, "", "").First(&activeShift).Error
 	return &activeShift, err
 }
 
