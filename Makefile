@@ -44,6 +44,6 @@ PROJECT_DIR ?= ~/social_justice_centers
 
 # Deploy updates to the virtual machine
 deploy:
-	@echo "Deploying to $$(SERVER_USER)@$$(SERVER_IP)..."
-	ssh $$(SERVER_USER)@$$(SERVER_IP) "cd $$(PROJECT_DIR) && git pull && make build && make run"
+	@echo "Deploying to $(SERVER_USER)@$(SERVER_IP)..."
+	ssh $(SERVER_USER)@$(SERVER_IP) "cd $(PROJECT_DIR) && git pull && make build && make run"
 	@echo "Deployment complete!"

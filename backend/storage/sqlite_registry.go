@@ -17,11 +17,18 @@ func NewSQLiteRegistry(db *gorm.DB) domain.Registry {
 	return &sqliteRegistry{db: db}
 }
 
-func (r *sqliteRegistry) Users() domain.UserStore                  { return &userStore{db: r.db} }
-func (r *sqliteRegistry) Shifts() domain.ShiftStore                { return &shiftStore{db: r.db} }
-func (r *sqliteRegistry) DrivingReports() domain.DrivingReportStore { return &drivingReportStore{db: r.db} }
+func (r *sqliteRegistry) Users() domain.UserStore { return &userStore{db: r.db} }
+func (r *sqliteRegistry) Shifts() domain.ShiftStore { return &shiftStore{db: r.db} }
+func (r *sqliteRegistry) DrivingReports() domain.DrivingReportStore {
+	return &drivingReportStore{db: r.db}
+}
+func (r *sqliteRegistry) EmployeeManagerHistories() domain.EmployeeManagerHistoryStore {
+	return &employeeManagerHistoryStore{db: r.db}
+}
 
-// --- User Store Implementation ---
+// =============================================================================
+// User Store
+// =============================================================================
 
 type userStore struct{ db *gorm.DB }
 
@@ -35,9 +42,16 @@ func (s *userStore) GetByPhone(phone string) (*models.User, error) {
 	return &user, err
 }
 
-func (s *userStore) GetByDirectManager(managerPhone string) ([]models.User, error) {
+func (s *userStore) GetByID(id uint) (*models.User, error) {
+	var user models.User
+	err := s.db.First(&user, id).Error
+	return &user, err
+}
+
+// GetByDirectManagerID returns all employees whose DirectManager equals managerID.
+func (s *userStore) GetByDirectManagerID(managerID uint) ([]models.User, error) {
 	var users []models.User
-	err := s.db.Where("direct_manager = ?", managerPhone).Find(&users).Error
+	err := s.db.Where("direct_manager = ?", managerID).Find(&users).Error
 	return users, err
 }
 
@@ -53,7 +67,23 @@ func (s *userStore) ExistsByPhone(phone string) (bool, error) {
 	return count > 0, err
 }
 
-// --- Shift Store Implementation ---
+func (s *userStore) Update(user *models.User) error {
+	return s.db.Save(user).Error
+}
+
+func (s *userStore) GetByEmail(email string) (*models.User, error) {
+	var user models.User
+	err := s.db.Where("email = ?", email).First(&user).Error
+	return &user, err
+}
+
+func (s *userStore) Delete(id uint) error {
+	return s.db.Delete(&models.User{}, id).Error
+}
+
+// =============================================================================
+// Shift Store
+// =============================================================================
 
 type shiftStore struct{ db *gorm.DB }
 
@@ -67,9 +97,34 @@ func (s *shiftStore) GetByAssignedTo(phone string) ([]models.Shift, error) {
 	return shifts, err
 }
 
-func (s *shiftStore) GetByAssignedBy(managerPhone string) ([]models.Shift, error) {
+// GetByAssignedToInDateRange returns shifts for a given employee whose date falls
+// within [startDate, endDate] (DD/MM/YYYY).  When endDate is "", the range is
+// open-ended (start_date onward, i.e. no upper bound).
+//
+// SQLite stores dates as DD/MM/YYYY text, so we convert them to YYYY-MM-DD for
+// reliable lexicographic comparison using SQLite's substr helpers.
+func (s *shiftStore) GetByAssignedToInDateRange(phone, startDate, endDate string) ([]models.Shift, error) {
 	var shifts []models.Shift
-	err := s.db.Where("assigned_by = ?", managerPhone).Find(&shifts).Error
+
+	// Convert DD/MM/YYYY → YYYY-MM-DD for SQLite text comparison.
+	toISO := func(ddmmyyyy string) string {
+		if len(ddmmyyyy) != 10 {
+			return ddmmyyyy
+		}
+		return ddmmyyyy[6:10] + "-" + ddmmyyyy[3:5] + "-" + ddmmyyyy[0:2]
+	}
+
+	isoStart := toISO(startDate)
+
+	query := s.db.Where("assigned_to = ?", phone).
+		Where("substr(date,7,4)||'-'||substr(date,4,2)||'-'||substr(date,1,2) >= ?", isoStart)
+
+	if endDate != "" {
+		isoEnd := toISO(endDate)
+		query = query.Where("substr(date,7,4)||'-'||substr(date,4,2)||'-'||substr(date,1,2) <= ?", isoEnd)
+	}
+
+	err := query.Find(&shifts).Error
 	return shifts, err
 }
 
@@ -79,7 +134,7 @@ func (s *shiftStore) Delete(id uint) error {
 
 func (s *shiftStore) GetActiveShift(phone string) (*models.Shift, error) {
 	var activeShift models.Shift
-	err := s.db.Where("assigned_to = ? AND end_time = ?", phone, "").First(&activeShift).Error
+	err := s.db.Where("assigned_to = ? AND end_time = ? AND (work_duration = ? OR work_duration IS NULL)", phone, "", "").First(&activeShift).Error
 	return &activeShift, err
 }
 
@@ -87,7 +142,15 @@ func (s *shiftStore) Update(shift *models.Shift) error {
 	return s.db.Save(shift).Error
 }
 
-// --- Driving Report Store Implementation ---
+func (s *shiftStore) GetByID(id uint) (*models.Shift, error) {
+	var shift models.Shift
+	err := s.db.First(&shift, id).Error
+	return &shift, err
+}
+
+// =============================================================================
+// Driving Report Store
+// =============================================================================
 
 type drivingReportStore struct{ db *gorm.DB }
 
@@ -121,4 +184,40 @@ func (s *drivingReportStore) Approve(id uint, managerPhone string) error {
 		"approved":    true,
 		"approved_by": managerPhone,
 	}).Error
+}
+
+// Update persists all editable fields of a DrivingReport.
+func (s *drivingReportStore) Update(report *models.DrivingReport) error {
+	return s.db.Save(report).Error
+}
+
+// =============================================================================
+// Employee Manager History Store
+// =============================================================================
+
+type employeeManagerHistoryStore struct{ db *gorm.DB }
+
+func (s *employeeManagerHistoryStore) Create(record *models.EmployeeManagerHistory) error {
+	return s.db.Create(record).Error
+}
+
+// GetActiveByEmployee returns the active (EndDate IS NULL) record for the employee.
+func (s *employeeManagerHistoryStore) GetActiveByEmployee(employeeID uint) (*models.EmployeeManagerHistory, error) {
+	var record models.EmployeeManagerHistory
+	err := s.db.Where("employee_index = ? AND end_date IS NULL", employeeID).First(&record).Error
+	return &record, err
+}
+
+// CloseActiveRecord sets EndDate on the currently-active record for an employee.
+func (s *employeeManagerHistoryStore) CloseActiveRecord(employeeID uint, endDate string) error {
+	return s.db.Model(&models.EmployeeManagerHistory{}).
+		Where("employee_index = ? AND end_date IS NULL", employeeID).
+		Update("end_date", endDate).Error
+}
+
+// GetHistoryByManager returns all history rows where ManagerIndex = managerID.
+func (s *employeeManagerHistoryStore) GetHistoryByManager(managerID uint) ([]models.EmployeeManagerHistory, error) {
+	var records []models.EmployeeManagerHistory
+	err := s.db.Where("manager_index = ?", managerID).Find(&records).Error
+	return records, err
 }

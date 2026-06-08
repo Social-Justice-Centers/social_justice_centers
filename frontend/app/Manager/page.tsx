@@ -3,52 +3,56 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserPlus, CalendarPlus, ArrowRight, Car } from 'lucide-react';
+import { UserPlus, ArrowRight, Car, Users, Download, X } from 'lucide-react';
 
-const BRAND_GREEN = '#446F41';
+const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
-const INPUT_BG = '#B2C6AE';
-
-// ---- Types ----
-interface TeamMember {
-    id: number;
-    username: string;
-    phone: string;
-    email: string;
-    role: string;
-    isFlexibleModel: boolean;
-    isRegularModel: boolean;
-}
-
-interface ShiftForm {
-    assignedTo: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    notes: string;
-}
-
-const today = () => new Date().toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\./g, '/');
 
 // ---- Component ----
 const ManagerPage = () => {
     const router = useRouter();
-
-    const [myPhone, setMyPhone] = useState('');
     const [loading, setLoading] = useState(true);
+    const [showExportModal, setShowExportModal] = useState(false);
 
-    // Team list state
-    const [team, setTeam] = useState<TeamMember[]>([]);
-    const [teamLoading, setTeamLoading] = useState(false);
-
-    // Assign shift modal state
-    const [showShiftModal, setShowShiftModal] = useState(false);
-    const [shiftForm, setShiftForm] = useState<ShiftForm>({
-        assignedTo: '', date: today(), startTime: '', endTime: '', notes: '',
+    // Export Modal States
+    const [exportMonth, setExportMonth] = useState(() => {
+        const m = new Date().getMonth() + 1;
+        return m < 10 ? `0${m}` : `${m}`;
     });
-    const [shiftLoading, setShiftLoading] = useState(false);
-    const [shiftError, setShiftError] = useState('');
-    const [shiftSuccess, setShiftSuccess] = useState('');
+    const [exportYear, setExportYear] = useState(() => new Date().getFullYear().toString());
+    const [exportError, setExportError] = useState('');
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportMichpal = async () => {
+        setIsExporting(true);
+        setExportError('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/manager/export/michpal?month=${exportMonth}&year=${exportYear}`, {
+                credentials: 'include',
+            });
+            if (!res.ok) {
+                const data = await res.json();
+                setExportError(data.error || 'שגיאה בייצוא הנתונים');
+                setIsExporting(false);
+                return;
+            }
+            // Trigger browser download
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `michpal_export_${exportYear}_${exportMonth}.xls`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            setShowExportModal(false);
+        } catch {
+            setExportError('שגיאת תקשורת עם השרת');
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // ---- Session Guard ----
     useEffect(() => {
@@ -58,7 +62,6 @@ const ManagerPage = () => {
                 if (!res.ok) { router.push('/'); return; }
                 const data = await res.json();
                 if (data.role !== 'manager') { router.push('/Browser'); return; }
-                setMyPhone(data.phone);
             } catch {
                 router.push('/');
             } finally {
@@ -68,62 +71,9 @@ const ManagerPage = () => {
         verify();
     }, [router]);
 
-    // ---- Fetch Team (For Modal) ----
-    // We only need this when opening the shift modal now
-    const fetchTeamForModal = async () => {
-        setTeamLoading(true);
-        try {
-            const res = await fetch(`${API_BASE_URL}/users/team`, { credentials: 'include' });
-            const data = await res.json();
-            setTeam(Array.isArray(data) ? data : []);
-        } finally {
-            setTeamLoading(false);
-        }
-    };
-
-    // ---- Assign Shift ----
-    const handleAssignShift = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setShiftError('');
-        setShiftSuccess('');
-        if (!shiftForm.assignedTo) { setShiftError('נא לבחור עובד'); return; }
-        if (!shiftForm.startTime || !shiftForm.endTime) { setShiftError('נא למלא שעת התחלה וסיום'); return; }
-
-        setShiftLoading(true);
-        try {
-            const res = await fetch(`${API_BASE_URL}/shifts`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify(shiftForm),
-            });
-            const data = await res.json();
-            if (!res.ok) { setShiftError(data.error || 'שגיאה בהקצאת המשמרת'); return; }
-            setShiftSuccess('משמרת הוקצתה בהצלחה!');
-            setShiftForm({ assignedTo: '', date: today(), startTime: '', endTime: '', notes: '' });
-        } catch {
-            setShiftError('שגיאת תקשורת עם השרת');
-        } finally {
-            setShiftLoading(false);
-        }
-    };
-
-    // ---- Open shift modal and ensure team is loaded ----
-    const openShiftModal = async () => {
-        setShiftError('');
-        setShiftSuccess('');
-        setShowShiftModal(true);
-        if (team.length === 0) {
-            await fetchTeamForModal();
-        }
-    };
-
-    // ---- Shared Input Style ----
-    const inputClass = "w-full h-12 px-4 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#446F41]";
-
     if (loading) return (
         <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">
-            <p style={{ color: BRAND_GREEN }} className="text-xl font-bold">טוען...</p>
+            <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">טוען...</p>
         </div>
     );
 
@@ -136,12 +86,12 @@ const ManagerPage = () => {
                     id="backBtn"
                     onClick={() => router.push('/ManagerMenu')}
                     className="flex items-center gap-2 font-bold hover:opacity-70 transition"
-                    style={{ color: BRAND_GREEN }}
+                    style={{ color: BRAND_BLUE }}
                 >
                     <ArrowRight size={22} />
                     <span>חזרה</span>
                 </button>
-                <h1 className="text-2xl font-bold" style={{ color: BRAND_GREEN }}>פאנל מנהל</h1>
+                <h1 className="text-2xl font-bold" style={{ color: BRAND_BLUE }}>פאנל מנהל</h1>
             </div>
 
             {/* Action Buttons */}
@@ -152,7 +102,7 @@ const ManagerPage = () => {
                     id="addEmployeeBtn"
                     onClick={() => router.push('/AddUserPage')}
                     className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md text-white transition-all hover:opacity-90 active:scale-95"
-                    style={{ backgroundColor: BRAND_GREEN }}
+                    style={{ backgroundColor: BRAND_BLUE }}
                 >
                     <span className="text-xl font-bold">הוספת עובד</span>
                     <UserPlus size={28} className="opacity-80" />
@@ -163,21 +113,21 @@ const ManagerPage = () => {
                     id="viewTeamBtn"
                     onClick={() => router.push('/MyEmployees')}
                     className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md border-2 transition-all hover:opacity-80 active:scale-95"
-                    style={{ borderColor: BRAND_GREEN, color: BRAND_GREEN, backgroundColor: 'white' }}
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'white' }}
                 >
                     <span className="text-xl font-bold">העובדים שלי</span>
-                    <ArrowRight size={24} className="rotate-180" />
+                    <Users size={24} />
                 </button>
 
-                {/* Assign Shift */}
+                {/* View Team Shifts */}
                 <button
-                    id="assignShiftBtn"
-                    onClick={openShiftModal}
-                    className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md text-white transition-all hover:opacity-90 active:scale-95"
-                    style={{ backgroundColor: BRAND_GREEN }}
+                    id="teamShiftsBtn"
+                    onClick={() => router.push('/TeamShifts')}
+                    className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md border-2 transition-all hover:opacity-80 active:scale-95"
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'white' }}
                 >
-                    <span className="text-xl font-bold">הקצאת משמרת</span>
-                    <CalendarPlus size={28} className="opacity-80" />
+                    <span className="text-xl font-bold">משמרות הצוות</span>
+                    <ArrowRight size={24} className="rotate-180" />
                 </button>
 
                 {/* Approve Driving Reports */}
@@ -185,139 +135,130 @@ const ManagerPage = () => {
                     id="approveDrivingReportsBtn"
                     onClick={() => router.push('/DrivingReports/approve')}
                     className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md border-2 transition-all hover:opacity-80 active:scale-95"
-                    style={{ borderColor: BRAND_GREEN, color: BRAND_GREEN, backgroundColor: 'white' }}
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'white' }}
                 >
                     <span className="text-xl font-bold">אישור דוחות נסיעות</span>
                     <Car size={28} />
                 </button>
 
+                {/* Export Data */}
+                <button
+                    id="exportBtn"
+                    onClick={() => setShowExportModal(true)}
+                    className="w-full h-20 flex items-center justify-between px-6 rounded-xl shadow-md border-2 transition-all hover:opacity-80 active:scale-95"
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'white' }}
+                >
+                    <span className="text-xl font-bold">ייצוא נתונים למיכפל</span>
+                    <Download size={28} />
+                </button>
+
             </div>
 
+            {/* Export Modal Backdrop */}
+            {showExportModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                    {/* Modal Content */}
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative text-center" dir="rtl">
+                        <button
+                            id="closeExportModalBtn"
+                            onClick={() => {
+                                setShowExportModal(false);
+                                setExportError('');
+                            }}
+                            className="absolute top-4 left-4 p-1 rounded-full hover:bg-gray-100 transition"
+                            style={{ color: BRAND_BLUE }}
+                            disabled={isExporting}
+                        >
+                            <X size={24} />
+                        </button>
 
-            {/* ---- Assign Shift Modal (Full Screen) ---- */}
-            {showShiftModal && (
-                <div className="fixed inset-0 bg-white flex flex-col p-6 z-50 overflow-y-auto" dir="rtl">
-                    <button
-                        onClick={() => setShowShiftModal(false)}
-                        className="absolute top-6 right-6 flex items-center gap-2 font-bold hover:opacity-70 transition z-10"
-                        style={{ color: BRAND_GREEN }}
-                    >
-                        <ArrowRight size={22} />
-                        <span>חזרה לפאנל מנהל</span>
-                    </button>
-                    
-                    <div className="max-w-md mx-auto w-full pt-14">
-                        <div className="flex justify-center items-center mb-8">
-                            <h2 className="text-3xl font-bold" style={{ color: BRAND_GREEN }}>הקצאת משמרת</h2>
+                        <div className="flex flex-col items-center gap-4 mt-4">
+                            <div className="p-3 bg-sky-100 rounded-full text-[#0284C7] mb-2">
+                                <Download size={40} />
+                            </div>
+                            <h2 className="text-2xl font-bold" style={{ color: BRAND_BLUE }}>ייצוא נתונים למיכפל</h2>
+                            <p className="text-gray-600 font-medium text-base leading-relaxed px-2">
+                                כאן תוכלו לייצא נתוני נוכחות ושכר של עובדים בפורמט התואם לתוכנת השכר &quot;מיכפל&quot;.
+                            </p>
                         </div>
 
-                        {shiftSuccess ? (
-                            <div className="text-center py-6">
-                                <p className="text-green-600 text-lg font-bold mb-4">{shiftSuccess}</p>
-                                <button
-                                    onClick={() => setShowShiftModal(false)}
-                                    className="px-6 py-2 rounded-lg text-white font-bold"
-                                    style={{ backgroundColor: BRAND_GREEN }}
-                                >סגור</button>
-                            </div>
-                        ) : (
-                            <form onSubmit={handleAssignShift} className="space-y-4">
-
-                                {/* Employee Selector */}
-                                <div>
-                                    <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_GREEN }}>עובד</label>
+                        {/* Selectors */}
+                        <div className="mt-6 space-y-4 text-right">
+                            <div className="flex gap-4">
+                                <div className="flex-1">
+                                    <label htmlFor="exportMonthSelect" className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>חודש דיווח</label>
                                     <select
-                                        id="assignedToSelect"
-                                        className={inputClass}
-                                        style={{ backgroundColor: INPUT_BG, color: BRAND_GREEN }}
-                                        value={shiftForm.assignedTo}
-                                        onChange={(e) => setShiftForm({ ...shiftForm, assignedTo: e.target.value })}
+                                        id="exportMonthSelect"
+                                        className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] font-semibold text-sm bg-white"
+                                        style={{ borderColor: '#E0F2FE', color: BRAND_BLUE }}
+                                        value={exportMonth}
+                                        onChange={(e) => setExportMonth(e.target.value)}
+                                        disabled={isExporting}
                                     >
-                                        <option value="">— בחר עובד —</option>
-                                        {/* Manager can also assign to themselves */}
-                                        <option value={myPhone}>אני (המנהל)</option>
-                                        {teamLoading ? (
-                                            <option disabled>טוען עובדים...</option>
-                                        ) : (
-                                            team.map((m) => (
-                                                <option key={m.id} value={m.phone}>{m.username} ({m.phone})</option>
-                                            ))
-                                        )}
+                                        <option value="01">ינואר (01)</option>
+                                        <option value="02">פברואר (02)</option>
+                                        <option value="03">מרץ (03)</option>
+                                        <option value="04">אפריל (04)</option>
+                                        <option value="05">מאי (05)</option>
+                                        <option value="06">יוני (06)</option>
+                                        <option value="07">יולי (07)</option>
+                                        <option value="08">אוגוסט (08)</option>
+                                        <option value="09">ספטמבר (09)</option>
+                                        <option value="10">אוקטובר (10)</option>
+                                        <option value="11">נובמבר (11)</option>
+                                        <option value="12">דצמבר (12)</option>
                                     </select>
                                 </div>
-
-                                {/* Date */}
-                                <div>
-                                    <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_GREEN }}>תאריך</label>
-                                    <input
-                                        id="shiftDate"
-                                        type="text"
-                                        placeholder="DD/MM/YYYY"
-                                        className={inputClass}
-                                        style={{ backgroundColor: INPUT_BG, color: BRAND_GREEN }}
-                                        value={shiftForm.date}
-                                        onChange={(e) => setShiftForm({ ...shiftForm, date: e.target.value })}
-                                    />
+                                <div className="flex-1">
+                                    <label htmlFor="exportYearSelect" className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>שנת מס</label>
+                                    <select
+                                        id="exportYearSelect"
+                                        className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] font-semibold text-sm bg-white"
+                                        style={{ borderColor: '#E0F2FE', color: BRAND_BLUE }}
+                                        value={exportYear}
+                                        onChange={(e) => setExportYear(e.target.value)}
+                                        disabled={isExporting}
+                                    >
+                                        <option value="2025">2025</option>
+                                        <option value="2026">2026</option>
+                                        <option value="2027">2027</option>
+                                    </select>
                                 </div>
+                            </div>
+                        </div>
 
-                                {/* Start / End Time */}
-                                <div className="flex gap-3">
-                                    <div className="flex-1">
-                                        <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_GREEN }}>שעת התחלה</label>
-                                        <input
-                                            id="startTime"
-                                            type="time"
-                                            className={inputClass}
-                                            style={{ backgroundColor: INPUT_BG, color: BRAND_GREEN }}
-                                            value={shiftForm.startTime}
-                                            onChange={(e) => setShiftForm({ ...shiftForm, startTime: e.target.value })}
-                                        />
-                                    </div>
-                                    <div className="flex-1">
-                                        <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_GREEN }}>שעת סיום</label>
-                                        <input
-                                            id="endTime"
-                                            type="time"
-                                            className={inputClass}
-                                            style={{ backgroundColor: INPUT_BG, color: BRAND_GREEN }}
-                                            value={shiftForm.endTime}
-                                            onChange={(e) => setShiftForm({ ...shiftForm, endTime: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* Notes */}
-                                <div>
-                                    <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_GREEN }}>הערות</label>
-                                    <textarea
-                                        id="shiftNotes"
-                                        rows={3}
-                                        placeholder="הערות אופציונליות..."
-                                        className="w-full px-4 py-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#446F41] resize-none"
-                                        style={{ backgroundColor: INPUT_BG, color: BRAND_GREEN }}
-                                        value={shiftForm.notes}
-                                        onChange={(e) => setShiftForm({ ...shiftForm, notes: e.target.value })}
-                                    />
-                                </div>
-
-                                {shiftError && <p className="text-red-600 text-center font-bold text-sm">{shiftError}</p>}
-
-                                <button
-                                    id="submitShiftBtn"
-                                    type="submit"
-                                    disabled={shiftLoading}
-                                    className="w-full h-14 text-white text-lg font-bold rounded-xl transition hover:opacity-90 disabled:opacity-50"
-                                    style={{ backgroundColor: BRAND_GREEN }}
-                                >
-                                    {shiftLoading ? 'שומר...' : 'הקצה משמרת'}
-                                </button>
-
-                            </form>
+                        {exportError && (
+                            <div className="mt-4 bg-red-50 text-red-600 p-3 rounded-lg text-center font-semibold text-xs border border-red-200">
+                                {exportError}
+                            </div>
                         )}
+
+                        <div className="mt-8 flex gap-3">
+                            <button
+                                id="confirmExportModalBtn"
+                                onClick={handleExportMichpal}
+                                disabled={isExporting}
+                                className="w-full h-12 flex items-center justify-center gap-2 text-white font-bold rounded-xl transition hover:opacity-90 disabled:opacity-50"
+                                style={{ backgroundColor: BRAND_BLUE }}
+                            >
+                                {isExporting ? 'מייצא קובץ...' : 'הורד קובץ XLS'}
+                            </button>
+                            <button
+                                id="cancelExportModalBtn"
+                                onClick={() => {
+                                    setShowExportModal(false);
+                                    setExportError('');
+                                }}
+                                disabled={isExporting}
+                                className="w-full h-12 flex items-center justify-center gap-2 font-bold rounded-xl border-2 transition hover:bg-gray-50 disabled:opacity-50"
+                                style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
+                            >
+                                ביטול
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
-
         </div>
     );
 };

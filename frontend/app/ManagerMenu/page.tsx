@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 
 const LOGO_SRC = '/images/logo.png';
-const BRAND_GREEN = '#446F41';
+const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
 
 const ManagerMenuPage = () => {
@@ -58,7 +58,7 @@ const ManagerMenuPage = () => {
     if (loading) {
         return (
             <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">
-                <p style={{ color: BRAND_GREEN }} className="text-xl font-bold">טוען...</p>
+                <p style={{ color: BRAND_BLUE }} className="text-xl font-bold">טוען...</p>
             </div>
         );
     }
@@ -71,7 +71,7 @@ const ManagerMenuPage = () => {
                 <button
                     onClick={handleLogout}
                     className="flex items-center gap-2 font-bold hover:opacity-70 transition"
-                    style={{ color: BRAND_GREEN }}
+                    style={{ color: BRAND_BLUE }}
                 >
                     <ArrowRight size={22} />
                     <span>חזרה</span>
@@ -90,10 +90,10 @@ const ManagerMenuPage = () => {
             </div>
 
             {/* Greeting */}
-            <h1 style={{ color: BRAND_GREEN }} className="text-2xl font-bold mb-2">
+            <h1 style={{ color: BRAND_BLUE }} className="text-2xl font-bold mb-2">
                 שלום, {username}
             </h1>
-            <p style={{ color: BRAND_GREEN }} className="text-md mb-12 opacity-70">
+            <p style={{ color: BRAND_BLUE }} className="text-md mb-12 opacity-70">
                 בחר את הפאנל אליו תרצה להיכנס
             </p>
 
@@ -104,7 +104,7 @@ const ManagerMenuPage = () => {
                     id="managerPanelBtn"
                     onClick={() => router.push('/Manager')}
                     className="w-full h-20 text-xl font-bold text-white rounded-xl shadow-lg transition duration-150 ease-in-out hover:opacity-90 active:scale-95"
-                    style={{ backgroundColor: BRAND_GREEN }}
+                    style={{ backgroundColor: BRAND_BLUE }}
                 >
                     פאנל מנהל
                 </button>
@@ -113,7 +113,7 @@ const ManagerMenuPage = () => {
                     id="employeePanelBtn"
                     onClick={() => router.push('/Browser')}
                     className="w-full h-20 text-xl font-bold rounded-xl shadow-md border-2 transition duration-150 ease-in-out hover:opacity-80 active:scale-95"
-                    style={{ borderColor: BRAND_GREEN, color: BRAND_GREEN, backgroundColor: 'transparent' }}
+                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE, backgroundColor: 'transparent' }}
                 >
                     פאנל עובד
                 </button>
@@ -126,7 +126,7 @@ const ManagerMenuPage = () => {
                 id="logoutBtn"
                 onClick={handleLogout}
                 className="mt-16 text-sm font-semibold underline opacity-60 hover:opacity-100 transition"
-                style={{ color: BRAND_GREEN }}
+                style={{ color: BRAND_BLUE }}
             >
                 התנתק
             </button>
