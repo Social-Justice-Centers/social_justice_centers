@@ -61,7 +61,7 @@ const RegularShiftPage = () => {
                     const allShifts = await allShiftsRes.json();
                     const d = new Date();
                     const todayStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-                    const plannedToday = allShifts.find((s: any) => s.type === 'planned' && s.date === todayStr);
+                    const plannedToday = allShifts.find((s: { type: string; date: string; endTime?: string }) => s.type === 'planned' && s.date === todayStr);
                     if (plannedToday && plannedToday.endTime) {
                         setPlannedEndTime(plannedToday.endTime);
                     }

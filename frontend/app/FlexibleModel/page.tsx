@@ -58,7 +58,7 @@ const FlexibleModelPage = () => {
                 const shiftsRes = await fetch(`${API_BASE_URL}/shifts`, { credentials: 'include' });
                 if (shiftsRes.ok) {
                     const allShifts = await shiftsRes.json();
-                    const plannedToday = allShifts.find((s: any) => s.type === 'planned' && s.date === date);
+                    const plannedToday = allShifts.find((s: { type: string; date: string; notes?: string }) => s.type === 'planned' && s.date === date);
                     if (plannedToday && plannedToday.notes) {
                         setNotes(plannedToday.notes);
                     }

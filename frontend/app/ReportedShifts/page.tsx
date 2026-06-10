@@ -38,7 +38,7 @@ const ReportedShiftsPage = () => {
     const [deleting, setDeleting] = useState<number | null>(null);
     const [error, setError] = useState('');
 
-    const fetchShifts = async () => {
+    const fetchShifts = React.useCallback(async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/shifts`, { credentials: 'include' });
             if (!res.ok) {
@@ -52,11 +52,11 @@ const ReportedShiftsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [router]);
 
     useEffect(() => {
         fetchShifts();
-    }, [router]);
+    }, [fetchShifts]);
 
     const addToGoogleCalendar = (shift: Shift) => {
         try {
