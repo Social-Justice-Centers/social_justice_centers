@@ -8,19 +8,23 @@ services:
     ports:
       - "8080:8080"
     restart: unless-stopped
+    env_file:
+      - ../backend/.env
     volumes:
-      # Mount the database file so data persists across container restarts
-      - ../backend/local_database.db:/app/local_database.db
+      # Mount the database directory so data persists across container restarts
+      - ../backend/data:/app/data
 
   frontend:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+      args:
+        - BACKEND_URL=http://backend:8080
     ports:
       - "3000:3000"
     restart: unless-stopped
     depends_on:
       - backend
     environment:
-      # Define environment variables if needed
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - BACKEND_URL=http://backend:8080
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}

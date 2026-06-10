@@ -20,7 +20,7 @@ WORKDIR /app
 COPY --from=builder /app/backend_app .
 
 # (Optional) If you have a predefined database file, uncomment the line below
-# COPY --from=builder /app/local_database.db .
+# COPY --from=builder /app/app.db .
 
 EXPOSE 8080
 
