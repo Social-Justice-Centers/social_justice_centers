@@ -24,6 +24,7 @@ interface TeamShift {
     type: string;
     employeeName: string;
     employeePhone: string;
+    status?: string;
 }
 
 interface EditForm {
@@ -210,6 +211,27 @@ const TeamShiftsPage = () => {
         }
     };
 
+    const approveShift = async (id: number) => {
+        try {
+            const res = await fetch(`${API_BASE_URL}/manager/shifts/${id}/approve`, {
+                method: 'PUT',
+                credentials: 'include'
+            });
+            if (res.ok) await fetchShifts();
+        } catch { alert('שגיאה באישור המשמרת') }
+    };
+
+    const rejectShift = async (id: number) => {
+        if (!confirm('לדחות ולמחוק את המשמרת לצמיתות?')) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/shifts/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (res.ok) await fetchShifts();
+        } catch { alert('שגיאה בדחיית המשמרת') }
+    };
+
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
 
     const displayed = shifts.filter(s => {
@@ -382,7 +404,14 @@ const TeamShiftsPage = () => {
                                         /* ---- VIEW MODE ---- */
                                         <>
                                             <div className="flex justify-between items-center">
-                                                <span className="font-bold text-lg" style={{ color: BRAND_BLUE }}>{shift.date}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-bold text-lg" style={{ color: BRAND_BLUE }}>{shift.date}</span>
+                                                    {shift.status === 'pending' && (
+                                                        <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                            לא הוקצתה - דורש אישור
+                                                        </span>
+                                                    )}
+                                                </div>
                                                 <span className="font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full text-sm">
                                                     {shift.startTime} — {shift.endTime || 'פעילה'}
                                                 </span>
@@ -393,22 +422,41 @@ const TeamShiftsPage = () => {
                                                 </div>
                                             )}
                                             <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => addToGoogleCalendar(shift)}
-                                                    className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-blue-50 text-blue-700"
-                                                    style={{ borderColor: BRAND_BLUE }}
-                                                >
-                                                    <CalendarPlus size={14} />
-                                                    ליומן
-                                                </button>
-                                                <button
-                                                    onClick={() => startEdit(shift)}
-                                                    className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-gray-50"
-                                                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
-                                                >
-                                                    <Pencil size={14} />
-                                                    עריכה
-                                                </button>
+                                                {shift.status === 'pending' ? (
+                                                    <>
+                                                        <button
+                                                            onClick={() => approveShift(shift.ID)}
+                                                            className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg bg-green-50 text-green-700 border-2 border-green-200 transition hover:bg-green-100"
+                                                        >
+                                                            <Check size={16} /> אישור
+                                                        </button>
+                                                        <button
+                                                            onClick={() => rejectShift(shift.ID)}
+                                                            className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 border-2 border-red-200 transition hover:bg-red-100"
+                                                        >
+                                                            <X size={16} /> דחייה
+                                                        </button>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => addToGoogleCalendar(shift)}
+                                                            className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-blue-50 text-blue-700"
+                                                            style={{ borderColor: BRAND_BLUE }}
+                                                        >
+                                                            <CalendarPlus size={14} />
+                                                            ליומן
+                                                        </button>
+                                                        <button
+                                                            onClick={() => startEdit(shift)}
+                                                            className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-gray-50"
+                                                            style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
+                                                        >
+                                                            <Pencil size={14} />
+                                                            עריכה
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         </>
                                     )}
