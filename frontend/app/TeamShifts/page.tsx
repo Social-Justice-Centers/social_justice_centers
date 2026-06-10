@@ -232,6 +232,17 @@ const TeamShiftsPage = () => {
         } catch { alert('שגיאה בדחיית המשמרת') }
     };
 
+    const deletePlannedShift = async (id: number) => {
+        if (!confirm('האם אתה בטוח שברצונך למחוק משמרת מתוכננת זו? המחיקה תעלים אותה גם למנהל וגם לעובד.')) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/shifts/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+            if (res.ok) await fetchShifts();
+        } catch { alert('שגיאה במחיקת המשמרת') }
+    };
+
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
 
     const displayed = shifts.filter(s => {
@@ -439,6 +450,15 @@ const TeamShiftsPage = () => {
                                                     </>
                                                 ) : (
                                                     <>
+                                                        {shift.type === 'planned' && (
+                                                            <button
+                                                                onClick={() => deletePlannedShift(shift.ID)}
+                                                                className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-red-50 text-red-600 border-red-600"
+                                                            >
+                                                                <X size={14} />
+                                                                מחיקה
+                                                            </button>
+                                                        )}
                                                         <button
                                                             onClick={() => addToGoogleCalendar(shift)}
                                                             className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-blue-50 text-blue-700"
