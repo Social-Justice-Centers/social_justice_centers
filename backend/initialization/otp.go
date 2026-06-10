@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"my-backend/utils"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -41,7 +43,7 @@ func storeOTP(phone, code string) {
 	}
 	otpMu.Lock()
 	defer otpMu.Unlock()
-	otpStore[phone] = otpEntry{hash: string(hashed), expiry: time.Now().Add(time.Minute)}
+	otpStore[phone] = otpEntry{hash: string(hashed), expiry: utils.Now().Add(time.Minute)}
 }
 
 func verifyAndConsumeOTP(phone, code string) bool {
@@ -51,7 +53,7 @@ func verifyAndConsumeOTP(phone, code string) bool {
 	if !ok {
 		return false
 	}
-	if time.Now().After(entry.expiry) {
+	if utils.Now().After(entry.expiry) {
 		delete(otpStore, phone)
 		return false
 	}

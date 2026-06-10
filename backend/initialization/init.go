@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/joho/godotenv"
@@ -13,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"my-backend/models"
+	"my-backend/utils"
 )
 
 // InitDB connects to the database, runs migrations, and seeds the default admin user.
@@ -135,7 +135,7 @@ func migrateDirectManagerColumn(db *gorm.DB) {
 
 // todayDDMMYYYY returns today's date in DD/MM/YYYY format.
 func todayDDMMYYYY() string {
-	return time.Now().Format("02/01/2006")
+	return utils.Now().Format("02/01/2006")
 }
 
 // seedAdminUser ensures the default admin exists on every startup.

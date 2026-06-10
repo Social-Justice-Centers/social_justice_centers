@@ -19,6 +19,7 @@ import (
 	"my-backend/add_user_validation"
 	"my-backend/domain"
 	"my-backend/models"
+	"my-backend/utils"
 )
 
 type otpRequestPayload struct {
@@ -270,7 +271,7 @@ func createUserHandler(db domain.Registry) gin.HandlerFunc {
 		history := models.EmployeeManagerHistory{
 			EmployeeIndex: req.ID,
 			ManagerIndex:  manager.ID,
-			StartDate:     time.Now().Format("02/01/2006"),
+			StartDate:     utils.Now().Format("02/01/2006"),
 			EndDate:       nil,
 		}
 		if err := db.EmployeeManagerHistories().Create(&history); err != nil {
@@ -413,7 +414,7 @@ func checkShiftApproval(db domain.Registry, phone string, date string, reportedN
 		return "pending"
 	}
 
-	now := time.Now()
+	now := utils.Now()
 
 	for _, s := range shifts {
 		if s.Type == "planned" {
@@ -422,7 +423,7 @@ func checkShiftApproval(db domain.Registry, phone string, date string, reportedN
 				continue
 			}
 			plannedTime := time.Date(now.Year(), now.Month(), now.Day(), t.Hour(), t.Minute(), 0, 0, now.Location())
-			
+
 			diff := now.Sub(plannedTime).Hours()
 			if diff >= -1.0 && diff <= 1.0 {
 				if checkNotes {
@@ -487,7 +488,7 @@ func clockInHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		now := time.Now()
+		now := utils.Now()
 		shift := models.Shift{
 			AssignedTo: phone,
 			AssignedBy: phone,
@@ -559,7 +560,7 @@ func submitDrivingReportHandler(db domain.Registry) gin.HandlerFunc {
 
 		report := models.DrivingReport{
 			UserPhone:   phone,
-			Date:        time.Now().Format("02/01/2006"),
+			Date:        utils.Now().Format("02/01/2006"),
 			Description: description,
 			TotalCost:   totalCost,
 		}
@@ -579,7 +580,7 @@ func submitDrivingReportHandler(db domain.Registry) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביצירת תיקיית העלאות"})
 				return
 			}
-			safeName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), filepath.Base(header.Filename))
+			safeName := fmt.Sprintf("%d_%s", utils.Now().UnixNano(), filepath.Base(header.Filename))
 			destPath := filepath.Join(uploadsDir, safeName)
 			dest, err := os.Create(destPath)
 			if err != nil {
@@ -1008,7 +1009,7 @@ func deleteEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 		}
 
 		// Close any active manager assignments in history by setting end_date to now
-		if err := db.EmployeeManagerHistories().CloseActiveRecord(userID, time.Now().Format("02/01/2006")); err != nil {
+		if err := db.EmployeeManagerHistories().CloseActiveRecord(userID, utils.Now().Format("02/01/2006")); err != nil {
 			log.Printf("ERROR: Failed to close active manager history on deletion: %v\n", err)
 		}
 
@@ -1027,7 +1028,7 @@ func exportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 		month := c.Query("month")
 		year := c.Query("year")
 
-		now := time.Now()
+		now := utils.Now()
 		if month == "" {
 			month = fmt.Sprintf("%02d", now.Month())
 		}

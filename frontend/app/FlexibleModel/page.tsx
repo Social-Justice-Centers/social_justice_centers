@@ -26,7 +26,8 @@ const DAY_OPTIONS: DayOption[] = [
 ];
 
 const todayString = (): string => {
-    const d = new Date();
+    const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+    const d = new Date(str);
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 

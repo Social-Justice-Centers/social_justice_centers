@@ -10,7 +10,9 @@ const BG_CREAM = '#FFFFFF';
 const INPUT_BG = '#E0F2FE';
 
 const getCurrentTimeString = () => {
-    return new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+    const d = new Date(str);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
 interface ActiveShift {
@@ -59,7 +61,8 @@ const RegularShiftPage = () => {
                 const allShiftsRes = await fetch(`${API_BASE_URL}/shifts`, { credentials: 'include' });
                 if (allShiftsRes.ok) {
                     const allShifts = await allShiftsRes.json();
-                    const d = new Date();
+                    const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+                    const d = new Date(str);
                     const todayStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
                     const plannedToday = allShifts.find((s: { type: string; date: string; endTime?: string }) => s.type === 'planned' && s.date === todayStr);
                     if (plannedToday && plannedToday.endTime) {
