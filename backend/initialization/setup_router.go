@@ -90,6 +90,7 @@ func SetupRouter(db domain.Registry) *gin.Engine {
 		mgr.GET("/manager/driving-reports", getTeamDrivingReportsHandler(db))
 		mgr.PUT("/manager/driving-reports/:id/approve", approveDrivingReportHandler(db))
 		mgr.GET("/manager/team/shifts", getTeamShiftsHandler(db))
+		mgr.POST("/manager/team/shifts", assignShiftHandler(db))
 		mgr.GET("/manager/export/michpal", exportMichpalHandler(db))
 	}
 
@@ -773,6 +774,61 @@ func getTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
 		}
 
 		c.JSON(http.StatusOK, result)
+	}
+}
+
+// POST /manager/team/shifts — Manager assigns a future shift to an employee
+func assignShiftHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		managerPhone := c.GetString("phone")
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
+			return
+		}
+
+		var req models.Shift
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "קלט לא תקין"})
+			return
+		}
+
+		// Verify the employee belongs to this manager
+		employee, err := db.Users().GetByPhone(req.AssignedTo)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "עובד לא נמצא"})
+			return
+		}
+
+		// Check if manager manages this employee
+		historyRecords, err := db.EmployeeManagerHistories().GetHistoryByManager(manager.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בבדיקת ההרשאות"})
+			return
+		}
+
+		isManaged := false
+		for _, record := range historyRecords {
+			if record.EmployeeIndex == employee.ID {
+				isManaged = true
+				break
+			}
+		}
+
+		if !isManaged {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה לשבץ עובד זה"})
+			return
+		}
+
+		req.AssignedBy = managerPhone
+		req.Type = "planned"
+
+		if err := db.Shifts().Create(&req); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביצירת המשמרת"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"message": "משמרת שובצה בהצלחה", "shift": req})
 	}
 }
 
