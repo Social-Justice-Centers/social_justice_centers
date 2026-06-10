@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"my-backend/add_user_validation"
+	"my-backend/configuration"
 	"my-backend/domain"
 	"my-backend/models"
 )
@@ -947,11 +948,11 @@ func exportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 							// Flexible shifts (e.g. reported via day option which might have empty EndTime)
 							switch s.WorkDuration {
 							case "full", "one day":
-								totalHours += 8.0
+								totalHours += configuration.FULL_DAY_LENGTH
 							case "half", "half day":
-								totalHours += 4.0
+								totalHours += configuration.HALF_DAY_LENGTH
 							case "sick", "sick day":
-								totalHours += 8.0
+								totalHours += configuration.FULL_DAY_LENGTH
 							}
 						}
 					}
