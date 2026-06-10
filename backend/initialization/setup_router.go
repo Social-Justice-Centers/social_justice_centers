@@ -16,8 +16,8 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 
-	configuration "my-backend/Configuration"
 	"my-backend/add_user_validation"
+	"my-backend/configuration"
 	"my-backend/domain"
 	"my-backend/models"
 )
