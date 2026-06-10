@@ -10,7 +10,9 @@ const BG_CREAM = '#FFFFFF';
 const INPUT_BG = '#E0F2FE';
 
 const getCurrentTimeString = () => {
-    return new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', hour12: false });
+    const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+    const d = new Date(str);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
 interface ActiveShift {
@@ -39,6 +41,7 @@ const RegularShiftPage = () => {
     const [confirmed, setConfirmed] = useState<boolean | null>(null);
     const [confirmError, setConfirmError] = useState('');
     const [success, setSuccess] = useState(false);
+    const [plannedEndTime, setPlannedEndTime] = useState<string | null>(null);
 
     // ---- Fetch Active Shift ----
     useEffect(() => {
@@ -53,6 +56,18 @@ const RegularShiftPage = () => {
                     setActiveShift(data);
                 } else {
                     setActiveShift(null);
+                }
+
+                const allShiftsRes = await fetch(`${API_BASE_URL}/shifts`, { credentials: 'include' });
+                if (allShiftsRes.ok) {
+                    const allShifts = await allShiftsRes.json();
+                    const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+                    const d = new Date(str);
+                    const todayStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+                    const plannedToday = allShifts.find((s: { type: string; date: string; endTime?: string }) => s.type === 'planned' && s.date === todayStr);
+                    if (plannedToday && plannedToday.endTime) {
+                        setPlannedEndTime(plannedToday.endTime);
+                    }
                 }
             } catch {
                 setErrorMsg("שגיאת תקשורת עם השרת");
@@ -210,7 +225,14 @@ const RegularShiftPage = () => {
                     <div className="bg-gray-50 p-6 rounded-2xl border mb-4 text-center">
                         <h2 className="text-lg font-bold text-gray-800 mb-2">סטטוס נוכחי</h2>
                         {activeShift ? (
-                            <p className="text-green-600 font-bold">פעיל ממשעה {activeShift.startTime}</p>
+                            <>
+                                <p className="text-green-600 font-bold mb-2">פעיל ממשעה {activeShift.startTime}</p>
+                                {plannedEndTime && (
+                                    <div className="bg-blue-50 text-blue-800 p-2 rounded-lg text-sm font-semibold border border-blue-200 mt-2">
+                                        תזכורת: המשמרת המתוכננת שלך מסתיימת בשעה {plannedEndTime}. זכור לדווח יציאה בזמן!
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             <p className="text-gray-500">אין משמרת פעילה</p>
                         )}
