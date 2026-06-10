@@ -55,6 +55,8 @@ const TeamShiftsPage = () => {
     const [assignError, setAssignError] = useState('');
     const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
+    const [activeTab, setActiveTab] = useState<'reported' | 'planned'>('reported');
+
     const fetchShifts = async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/manager/team/shifts`, { credentials: 'include' });
@@ -135,7 +137,7 @@ const TeamShiftsPage = () => {
         }
     };
 
-    const downloadICS = (shift: TeamShift) => {
+    const addToGoogleCalendar = (shift: TeamShift) => {
         try {
             const [day, month, year] = shift.date.split('/');
             
@@ -154,28 +156,22 @@ const TeamShiftsPage = () => {
             }
             
             const pad = (n: number) => n.toString().padStart(2, '0');
-            const formatLocal = (date: Date) => {
-                return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+            const formatForGoogle = (date: Date) => {
+                return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
             };
             
-            const startStr = formatLocal(startDate);
-            const endStr = formatLocal(endDate);
-            const nowStr = formatLocal(new Date());
+            const startStr = formatForGoogle(startDate);
+            const endStr = formatForGoogle(endDate);
             
-            const icsContent = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Social Justice Centers//Shift Calendar//HE\r\nCALSCALE:GREGORIAN\r\nBEGIN:VEVENT\r\nDTSTAMP:${nowStr}\r\nDTSTART;TZID=Asia/Jerusalem:${startStr}\r\nDTEND;TZID=Asia/Jerusalem:${endStr}\r\nSUMMARY:משמרת במרכז לצדק חברתי\r\nDESCRIPTION:${shift.notes || 'משמרת מתוכננת'}\r\nBEGIN:VALARM\r\nTRIGGER:-PT60M\r\nACTION:DISPLAY\r\nDESCRIPTION:תזכורת למשמרת בעוד שעה\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+            const title = encodeURIComponent('משמרת במרכז לצדק חברתי');
+            const details = encodeURIComponent(shift.notes || 'משמרת מתוכננת');
             
-            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `shift_${shift.date.replace(/\//g, '-')}.ics`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}&ctz=Asia/Jerusalem`;
+            
+            window.open(url, '_blank');
         } catch (e) {
-            console.error("Failed to generate ICS", e);
-            alert("שגיאה ביצירת קובץ היומן");
+            console.error("Failed to generate Google Calendar link", e);
+            alert("שגיאה בפתיחת היומן");
         }
     };
 
@@ -216,9 +212,11 @@ const TeamShiftsPage = () => {
 
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
 
-    const displayed = shifts.filter(s =>
-        !filter || (s.employeeName || '').toLowerCase().includes(filter.toLowerCase())
-    );
+    const displayed = shifts.filter(s => {
+        const matchesTab = activeTab === 'planned' ? s.type === 'planned' : s.type !== 'planned';
+        const matchesFilter = !filter || (s.employeeName || '').toLowerCase().includes(filter.toLowerCase());
+        return matchesTab && matchesFilter;
+    });
 
     if (loading) return (
         <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">
@@ -271,6 +269,22 @@ const TeamShiftsPage = () => {
                 {error && (
                     <div className="mb-4 bg-red-100 text-red-700 p-3 rounded-lg text-center font-bold text-sm">{error}</div>
                 )}
+
+                {/* Tabs */}
+                <div className="flex bg-white rounded-xl shadow-sm mb-6 p-1 border-2" style={{ borderColor: INPUT_BG }}>
+                    <button
+                        onClick={() => setActiveTab('reported')}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'reported' ? 'bg-[#0284C7] text-white' : 'text-[#0284C7] hover:bg-sky-50'}`}
+                    >
+                        משמרות שדווחו (עבר)
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('planned')}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'planned' ? 'bg-[#0284C7] text-white' : 'text-[#0284C7] hover:bg-sky-50'}`}
+                    >
+                        משמרות עתידיות
+                    </button>
+                </div>
 
                 {/* Shifts list */}
                 <div className="bg-white rounded-2xl shadow-lg p-6" style={{ border: `2px solid ${BRAND_BLUE}` }}>
@@ -380,7 +394,7 @@ const TeamShiftsPage = () => {
                                             )}
                                             <div className="flex justify-end gap-2">
                                                 <button
-                                                    onClick={() => downloadICS(shift)}
+                                                    onClick={() => addToGoogleCalendar(shift)}
                                                     className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-blue-50 text-blue-700"
                                                     style={{ borderColor: BRAND_BLUE }}
                                                 >
