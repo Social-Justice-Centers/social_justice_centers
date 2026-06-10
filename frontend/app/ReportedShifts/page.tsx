@@ -3,7 +3,7 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, ArrowRight, Pencil, Trash2, Check, X, CalendarPlus } from 'lucide-react';
+import { Clock, ArrowRight, Pencil, Check, X, CalendarPlus } from 'lucide-react';
 
 const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
@@ -35,7 +35,6 @@ const ReportedShiftsPage = () => {
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editForm, setEditForm] = useState<EditForm>({ date: '', startTime: '', endTime: '', notes: '' });
     const [saving, setSaving] = useState(false);
-    const [deleting, setDeleting] = useState<number | null>(null);
     const [error, setError] = useState('');
 
     const fetchShifts = React.useCallback(async () => {
@@ -134,21 +133,6 @@ const ReportedShiftsPage = () => {
         } finally {
             setSaving(false);
         }
-    };
-
-    const deleteShift = async (id: number) => {
-        if (!confirm('האם למחוק משמרת זו?')) return;
-        setDeleting(id);
-        try {
-            const res = await fetch(`${API_BASE_URL}/shifts/${id}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            if (res.ok) {
-                setShifts(prev => prev.filter(s => s.ID !== id));
-            }
-        } catch { /* ignore */ }
-        finally { setDeleting(null); }
     };
 
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
@@ -334,15 +318,6 @@ const ReportedShiftsPage = () => {
                                                     >
                                                         <Pencil size={14} />
                                                         עריכה
-                                                    </button>
-                                                    <button
-                                                        onClick={() => deleteShift(shift.ID)}
-                                                        disabled={deleting === shift.ID}
-                                                        className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-red-50 disabled:opacity-40"
-                                                        style={{ borderColor: '#dc2626', color: '#dc2626' }}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                        {deleting === shift.ID ? '...' : 'מחיקה'}
                                                     </button>
                                                 </div>
                                             </div>
