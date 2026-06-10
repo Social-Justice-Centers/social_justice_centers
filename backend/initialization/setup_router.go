@@ -408,31 +408,42 @@ func deleteShiftHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-func checkShiftApproval(db domain.Registry, phone string, date string, reportedNotes string, checkNotes bool) string {
+func checkShiftApproval(db domain.Registry, phone string, date string, reportedStart string, reportedEnd string, reportedNotes string, checkNotes bool) string {
 	shifts, err := db.Shifts().GetByAssignedToInDateRange(phone, date, date)
 	if err != nil {
 		return "pending"
 	}
 
-	now := utils.Now()
-
 	for _, s := range shifts {
 		if s.Type == "planned" {
-			t, err := time.Parse("15:04", s.StartTime)
-			if err != nil {
+			pStart, err1 := time.Parse("15:04", s.StartTime)
+			rStart, err2 := time.Parse("15:04", reportedStart)
+			if err1 != nil || err2 != nil {
 				continue
 			}
-			plannedTime := time.Date(now.Year(), now.Month(), now.Day(), t.Hour(), t.Minute(), 0, 0, now.Location())
+			
+			startDiff := rStart.Sub(pStart).Minutes()
+			if startDiff < -30 || startDiff > 30 {
+				continue
+			}
 
-			diff := now.Sub(plannedTime).Hours()
-			if diff >= -1.0 && diff <= 1.0 {
-				if checkNotes {
-					if s.Notes != reportedNotes {
-						return "pending"
+			if reportedEnd != "" && s.EndTime != "" {
+				pEnd, err1 := time.Parse("15:04", s.EndTime)
+				rEnd, err2 := time.Parse("15:04", reportedEnd)
+				if err1 == nil && err2 == nil {
+					endDiff := rEnd.Sub(pEnd).Minutes()
+					if endDiff < -30 || endDiff > 30 {
+						continue
 					}
 				}
-				return "approved"
 			}
+
+			if checkNotes {
+				if s.Notes != reportedNotes {
+					return "pending"
+				}
+			}
+			return "approved"
 		}
 	}
 	return "pending"
@@ -464,7 +475,7 @@ func reportShiftHandler(db domain.Registry) gin.HandlerFunc {
 		req.AssignedTo = phone
 		req.AssignedBy = phone
 		req.Type = "reported"
-		req.Status = checkShiftApproval(db, phone, req.Date, req.Notes, true)
+		req.Status = checkShiftApproval(db, phone, req.Date, req.StartTime, req.EndTime, req.Notes, true)
 
 		if err := db.Shifts().Create(&req); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשמירת דיווח המשמרת"})
@@ -510,7 +521,7 @@ func clockInHandler(db domain.Registry) gin.HandlerFunc {
 			StartTime:  now.Format("15:04"),
 			EndTime:    "",
 			Type:       "reported",
-			Status:     checkShiftApproval(db, phone, now.Format("02/01/2006"), "", false),
+			Status:     checkShiftApproval(db, phone, now.Format("02/01/2006"), now.Format("15:04"), "", "", false),
 		}
 
 		if err := db.Shifts().Create(&shift); err != nil {
@@ -548,6 +559,7 @@ func clockOutHandler(db domain.Registry) gin.HandlerFunc {
 
 		activeShift.EndTime = req.EndTime
 		activeShift.Notes = req.Notes
+		activeShift.Status = checkShiftApproval(db, phone, activeShift.Date, activeShift.StartTime, req.EndTime, req.Notes, false)
 
 		if err := db.Shifts().Update(activeShift); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביציאה מהמשמרת"})
