@@ -3,7 +3,12 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Users, Pencil, Check, X } from 'lucide-react';
+import { ArrowRight, Users, Pencil, Check, X, CalendarPlus, Plus } from 'lucide-react';
+
+interface TeamMember {
+    phone: string;
+    fullName: string;
+}
 
 const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
@@ -43,6 +48,13 @@ const TeamShiftsPage = () => {
     // Filter by employee name
     const [filter, setFilter] = useState('');
 
+    // Assign state
+    const [showAssignModal, setShowAssignModal] = useState(false);
+    const [assignForm, setAssignForm] = useState({ assignedTo: '', date: '', startTime: '', endTime: '', notes: '' });
+    const [assigning, setAssigning] = useState(false);
+    const [assignError, setAssignError] = useState('');
+    const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
     const fetchShifts = async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/manager/team/shifts`, { credentials: 'include' });
@@ -79,6 +91,12 @@ const TeamShiftsPage = () => {
                 }
                 const data = await res.json();
                 setShifts(Array.isArray(data) ? data : []);
+
+                const teamRes = await fetch(`${API_BASE_URL}/users/team`, { credentials: 'include' });
+                if (teamRes.ok) {
+                    const teamData = await teamRes.json();
+                    setTeamMembers(Array.isArray(teamData) ? teamData : []);
+                }
             } catch {
                 setError('שגיאת תקשורת עם השרת');
             } finally {
@@ -87,6 +105,79 @@ const TeamShiftsPage = () => {
         };
         verify();
     }, [router]);
+
+    const handleAssignShift = async () => {
+        if (!assignForm.assignedTo || !assignForm.date || !assignForm.startTime) {
+            setAssignError('נא למלא עובד, תאריך ושעת התחלה');
+            return;
+        }
+        setAssigning(true);
+        setAssignError('');
+        try {
+            const res = await fetch(`${API_BASE_URL}/manager/team/shifts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(assignForm),
+            });
+            if (!res.ok) {
+                const d = await res.json();
+                setAssignError(d.error || 'שגיאה בשיבוץ המשמרת');
+                return;
+            }
+            setShowAssignModal(false);
+            setAssignForm({ assignedTo: '', date: '', startTime: '', endTime: '', notes: '' });
+            await fetchShifts();
+        } catch {
+            setAssignError('שגיאת תקשורת');
+        } finally {
+            setAssigning(false);
+        }
+    };
+
+    const downloadICS = (shift: TeamShift) => {
+        try {
+            const [day, month, year] = shift.date.split('/');
+            
+            const startHour = shift.startTime ? parseInt(shift.startTime.split(':')[0], 10) : 9;
+            const startMin = shift.startTime ? parseInt(shift.startTime.split(':')[1], 10) : 0;
+            
+            const startDate = new Date(Number(year), Number(month) - 1, Number(day), startHour, startMin);
+            
+            let endDate = new Date(startDate);
+            if (shift.endTime) {
+                const endHour = parseInt(shift.endTime.split(':')[0], 10);
+                const endMin = parseInt(shift.endTime.split(':')[1], 10);
+                endDate = new Date(Number(year), Number(month) - 1, Number(day), endHour, endMin);
+            } else {
+                endDate.setHours(endDate.getHours() + 8);
+            }
+            
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            const formatLocal = (date: Date) => {
+                return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+            };
+            
+            const startStr = formatLocal(startDate);
+            const endStr = formatLocal(endDate);
+            const nowStr = formatLocal(new Date());
+            
+            const icsContent = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Social Justice Centers//Shift Calendar//HE\r\nCALSCALE:GREGORIAN\r\nBEGIN:VEVENT\r\nDTSTAMP:${nowStr}\r\nDTSTART;TZID=Asia/Jerusalem:${startStr}\r\nDTEND;TZID=Asia/Jerusalem:${endStr}\r\nSUMMARY:משמרת במרכז לצדק חברתי\r\nDESCRIPTION:${shift.notes || 'משמרת מתוכננת'}\r\nBEGIN:VALARM\r\nTRIGGER:-PT60M\r\nACTION:DISPLAY\r\nDESCRIPTION:תזכורת למשמרת בעוד שעה\r\nEND:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+            
+            const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `shift_${shift.date.replace(/\//g, '-')}.ics`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Failed to generate ICS", e);
+            alert("שגיאה ביצירת קובץ היומן");
+        }
+    };
 
     const startEdit = (shift: TeamShift) => {
         setEditingId(shift.ID);
@@ -157,12 +248,20 @@ const TeamShiftsPage = () => {
                     מוצגות משמרות בהתאם לתקופת הניהול שלך לכל עובד
                 </p>
 
-                {/* Filter */}
-                <div className="mb-4">
+                {/* Filter & Assign Action */}
+                <div className="mb-4 flex flex-col sm:flex-row gap-3">
+                    <button
+                        onClick={() => setShowAssignModal(true)}
+                        className="h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-white font-bold shadow-md transition hover:opacity-90 whitespace-nowrap"
+                        style={{ backgroundColor: BRAND_BLUE }}
+                    >
+                        <Plus size={20} />
+                        שיבוץ משמרת
+                    </button>
                     <input
                         type="text"
                         placeholder="סינון לפי שם עובד..."
-                        className="w-full h-11 px-4 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7]"
+                        className="flex-1 h-11 px-4 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7]"
                         style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
                         value={filter}
                         onChange={e => setFilter(e.target.value)}
@@ -279,7 +378,15 @@ const TeamShiftsPage = () => {
                                                     <span className="font-bold">הערות: </span>{shift.notes}
                                                 </div>
                                             )}
-                                            <div className="flex justify-end">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => downloadICS(shift)}
+                                                    className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-blue-50 text-blue-700"
+                                                    style={{ borderColor: BRAND_BLUE }}
+                                                >
+                                                    <CalendarPlus size={14} />
+                                                    ליומן
+                                                </button>
                                                 <button
                                                     onClick={() => startEdit(shift)}
                                                     className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-gray-50"
@@ -301,6 +408,98 @@ const TeamShiftsPage = () => {
                     סה&quot;כ {displayed.length} משמרות
                 </p>
             </div>
+
+            {/* Assign Modal */}
+            {showAssignModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl relative" dir="rtl">
+                        <button
+                            onClick={() => {
+                                setShowAssignModal(false);
+                                setAssignError('');
+                            }}
+                            className="absolute top-4 left-4 p-1 rounded-full hover:bg-gray-100 transition"
+                            style={{ color: BRAND_BLUE }}
+                            disabled={assigning}
+                        >
+                            <X size={24} />
+                        </button>
+                        <h2 className="text-xl font-bold mb-6 text-center" style={{ color: BRAND_BLUE }}>שיבוץ משמרת לעובד</h2>
+                        
+                        <div className="flex flex-col gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>בחר עובד</label>
+                                <select
+                                    className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] bg-white"
+                                    style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                    value={assignForm.assignedTo}
+                                    onChange={e => setAssignForm({ ...assignForm, assignedTo: e.target.value })}
+                                >
+                                    <option value="">-- בחר עובד --</option>
+                                    {teamMembers.map(m => (
+                                        <option key={m.phone} value={m.phone}>{m.fullName} ({m.phone})</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>תאריך (DD/MM/YYYY)</label>
+                                <input
+                                    type="text"
+                                    placeholder="לדוגמה 15/06/2026"
+                                    className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7]"
+                                    style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                    value={assignForm.date}
+                                    onChange={e => setAssignForm({ ...assignForm, date: e.target.value })}
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="flex-1">
+                                    <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>שעת התחלה</label>
+                                    <input
+                                        type="time"
+                                        className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7]"
+                                        style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                        value={assignForm.startTime}
+                                        onChange={e => setAssignForm({ ...assignForm, startTime: e.target.value })}
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>שעת סיום</label>
+                                    <input
+                                        type="time"
+                                        className="w-full h-11 px-3 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7]"
+                                        style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                        value={assignForm.endTime}
+                                        onChange={e => setAssignForm({ ...assignForm, endTime: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1" style={{ color: BRAND_BLUE }}>הערות (אופציונלי)</label>
+                                <textarea
+                                    rows={2}
+                                    className="w-full px-3 py-2 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] resize-none"
+                                    style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                    value={assignForm.notes}
+                                    onChange={e => setAssignForm({ ...assignForm, notes: e.target.value })}
+                                />
+                            </div>
+                            
+                            {assignError && <div className="text-red-600 text-sm font-bold text-center mt-2">{assignError}</div>}
+                            
+                            <button
+                                onClick={handleAssignShift}
+                                disabled={assigning}
+                                className="w-full h-12 mt-2 flex items-center justify-center gap-2 text-white font-bold rounded-xl transition hover:opacity-90 disabled:opacity-50"
+                                style={{ backgroundColor: BRAND_BLUE }}
+                            >
+                                <Check size={20} />
+                                {assigning ? 'שומר...' : 'שמור משמרת'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
