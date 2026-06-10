@@ -137,3 +137,42 @@ func sendViaTLS(host, port string, auth smtp.Auth, from, to string, msg []byte) 
 	}
 	return client.Quit()
 }
+
+func SendReminderEmail(toEmail string) error {
+	host := os.Getenv("SMTP_HOST")
+	if host == "" {
+		host = "smtp.gmail.com"
+	}
+	port := os.Getenv("SMTP_PORT")
+	if port == "" {
+		port = "587"
+	}
+	user := os.Getenv("SMTP_USER")
+	if user == "" {
+		user = "sjcenter@gmail.com"
+	}
+	pass := os.Getenv("SMTP_PASS")
+
+	if pass == "" {
+		log.Printf("[DEV WARN] SMTP_PASS not set! Reminder for <%s>\n", toEmail)
+		return nil
+	}
+
+	subject := "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte("תזכורת: לא דיווחת יציאה ממשמרת")) + "?="
+	body := "שמנו לב שחלפה חצי שעה מסיום המשמרת המתוכננת שלך, ועדיין לא דיווחת יציאה.\r\nאנא היכנס למערכת ודווח יציאה בהקדם.\r\n\r\nתודה,\r\nצוות מרכזי הצדק."
+	msg := []byte(
+		"To: " + toEmail + "\r\n" +
+			"From: " + user + "\r\n" +
+			"Subject: " + subject + "\r\n" +
+			"Content-Type: text/plain; charset=UTF-8\r\n" +
+			"\r\n" +
+			body,
+	)
+
+	auth := smtp.PlainAuth("", user, pass, host)
+
+	if port == "465" {
+		return sendViaTLS(host, port, auth, user, toEmail, msg)
+	}
+	return smtp.SendMail(host+":"+port, auth, user, []string{toEmail}, msg)
+}

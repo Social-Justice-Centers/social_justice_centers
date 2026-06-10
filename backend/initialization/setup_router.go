@@ -438,6 +438,18 @@ func checkShiftApproval(db domain.Registry, phone string, date string, reportedN
 	return "pending"
 }
 
+func consumePlannedShift(db domain.Registry, phone string, date string) {
+	shifts, err := db.Shifts().GetByAssignedToInDateRange(phone, date, date)
+	if err != nil {
+		return
+	}
+	for _, s := range shifts {
+		if s.Type == "planned" {
+			_ = db.Shifts().Delete(s.ID)
+		}
+	}
+}
+
 // POST /shifts/report — employee self-reports their own worked hours
 func reportShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -458,6 +470,8 @@ func reportShiftHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשמירת דיווח המשמרת"})
 			return
 		}
+
+		consumePlannedShift(db, phone, req.Date)
 
 		c.JSON(http.StatusCreated, gin.H{"message": "דיווח המשמרת נשמר בהצלחה"})
 	}
@@ -539,6 +553,8 @@ func clockOutHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביציאה מהמשמרת"})
 			return
 		}
+
+		consumePlannedShift(db, phone, activeShift.Date)
 
 		c.JSON(http.StatusOK, gin.H{"message": "יציאה ממשמרת עודכנה בהצלחה"})
 	}

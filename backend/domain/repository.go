@@ -26,6 +26,7 @@ type ShiftStore interface {
 	GetByAssignedToInDateRange(phone string, startDate string, endDate string) ([]models.Shift, error)
 	Delete(id uint) error
 	GetActiveShift(phone string) (*models.Shift, error)
+	GetAllActiveShifts() ([]models.Shift, error)
 	Update(shift *models.Shift) error
 	GetByID(id uint) (*models.Shift, error)
 }
