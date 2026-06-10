@@ -1,4 +1,4 @@
-package Configuration
+package configuration
 
 const (
 	FULL_DAY_LENGTH = 8.0
