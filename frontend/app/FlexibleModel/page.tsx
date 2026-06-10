@@ -26,7 +26,8 @@ const DAY_OPTIONS: DayOption[] = [
 ];
 
 const todayString = (): string => {
-    const d = new Date();
+    const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+    const d = new Date(str);
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
@@ -44,20 +45,34 @@ const FlexibleModelPage = () => {
 
     const date = todayString();
 
-    // ---- Session guard ----
+    // ---- Session guard & Auto-fill ----
     useEffect(() => {
-        const verify = async () => {
+        const verifyAndFetch = async () => {
             try {
                 const res = await fetch(`${API_BASE_URL}/me`, { credentials: 'include' });
-                if (!res.ok) router.push('/');
+                if (!res.ok) {
+                    router.push('/');
+                    return;
+                }
+                
+                // Auto-fill from planned shift today
+                const shiftsRes = await fetch(`${API_BASE_URL}/shifts`, { credentials: 'include' });
+                if (shiftsRes.ok) {
+                    const allShifts = await shiftsRes.json();
+                    const plannedToday = allShifts.find((s: { type: string; date: string; notes?: string }) => s.type === 'planned' && s.date === date);
+                    if (plannedToday && plannedToday.notes) {
+                        setNotes(plannedToday.notes);
+                    }
+                }
+
             } catch {
                 router.push('/');
             } finally {
                 setPageLoading(false);
             }
         };
-        verify();
-    }, [router]);
+        verifyAndFetch();
+    }, [router, date]);
 
     // ---- Submit ----
     const handleSubmit = async (e: React.FormEvent) => {

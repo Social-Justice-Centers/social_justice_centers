@@ -13,4 +13,6 @@ type Shift struct {
 	WorkDuration string `json:"workDuration"` // Reserved for future half/full day calculation
 	Notes        string `json:"notes"`
 	Type         string `json:"type"` // "planned" or "reported"
+	Status       string `gorm:"default:'approved'" json:"status"` // "approved" or "pending"
+	ReminderSent bool   `json:"reminderSent" gorm:"default:false"`
 }

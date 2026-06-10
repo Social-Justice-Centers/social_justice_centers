@@ -19,6 +19,7 @@ import (
 	"my-backend/add_user_validation"
 	"my-backend/domain"
 	"my-backend/models"
+	"my-backend/utils"
 )
 
 type otpRequestPayload struct {
@@ -90,6 +91,8 @@ func SetupRouter(db domain.Registry) *gin.Engine {
 		mgr.GET("/manager/driving-reports", getTeamDrivingReportsHandler(db))
 		mgr.PUT("/manager/driving-reports/:id/approve", approveDrivingReportHandler(db))
 		mgr.GET("/manager/team/shifts", getTeamShiftsHandler(db))
+		mgr.POST("/manager/team/shifts", assignShiftHandler(db))
+		mgr.PUT("/manager/shifts/:id/approve", approveManagerShiftHandler(db))
 		mgr.GET("/manager/export/michpal", exportMichpalHandler(db))
 	}
 
@@ -268,7 +271,7 @@ func createUserHandler(db domain.Registry) gin.HandlerFunc {
 		history := models.EmployeeManagerHistory{
 			EmployeeIndex: req.ID,
 			ManagerIndex:  manager.ID,
-			StartDate:     time.Now().Format("02/01/2006"),
+			StartDate:     utils.Now().Format("02/01/2006"),
 			EndDate:       nil,
 		}
 		if err := db.EmployeeManagerHistories().Create(&history); err != nil {
@@ -405,6 +408,59 @@ func deleteShiftHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
+func checkShiftApproval(db domain.Registry, phone string, date string, reportedStart string, reportedEnd string, reportedNotes string, checkNotes bool) string {
+	shifts, err := db.Shifts().GetByAssignedToInDateRange(phone, date, date)
+	if err != nil {
+		return "pending"
+	}
+
+	for _, s := range shifts {
+		if s.Type == "planned" {
+			pStart, err1 := time.Parse("15:04", s.StartTime)
+			rStart, err2 := time.Parse("15:04", reportedStart)
+			if err1 != nil || err2 != nil {
+				continue
+			}
+			
+			startDiff := rStart.Sub(pStart).Minutes()
+			if startDiff < -30 || startDiff > 30 {
+				continue
+			}
+
+			if reportedEnd != "" && s.EndTime != "" {
+				pEnd, err1 := time.Parse("15:04", s.EndTime)
+				rEnd, err2 := time.Parse("15:04", reportedEnd)
+				if err1 == nil && err2 == nil {
+					endDiff := rEnd.Sub(pEnd).Minutes()
+					if endDiff < -30 || endDiff > 30 {
+						continue
+					}
+				}
+			}
+
+			if checkNotes {
+				if s.Notes != reportedNotes {
+					return "pending"
+				}
+			}
+			return "approved"
+		}
+	}
+	return "pending"
+}
+
+func consumePlannedShift(db domain.Registry, phone string, date string) {
+	shifts, err := db.Shifts().GetByAssignedToInDateRange(phone, date, date)
+	if err != nil {
+		return
+	}
+	for _, s := range shifts {
+		if s.Type == "planned" {
+			_ = db.Shifts().Delete(s.ID)
+		}
+	}
+}
+
 // POST /shifts/report — employee self-reports their own worked hours
 func reportShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -419,11 +475,14 @@ func reportShiftHandler(db domain.Registry) gin.HandlerFunc {
 		req.AssignedTo = phone
 		req.AssignedBy = phone
 		req.Type = "reported"
+		req.Status = checkShiftApproval(db, phone, req.Date, req.StartTime, req.EndTime, req.Notes, true)
 
 		if err := db.Shifts().Create(&req); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשמירת דיווח המשמרת"})
 			return
 		}
+
+		consumePlannedShift(db, phone, req.Date)
 
 		c.JSON(http.StatusCreated, gin.H{"message": "דיווח המשמרת נשמר בהצלחה"})
 	}
@@ -454,7 +513,7 @@ func clockInHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		now := time.Now()
+		now := utils.Now()
 		shift := models.Shift{
 			AssignedTo: phone,
 			AssignedBy: phone,
@@ -462,6 +521,7 @@ func clockInHandler(db domain.Registry) gin.HandlerFunc {
 			StartTime:  now.Format("15:04"),
 			EndTime:    "",
 			Type:       "reported",
+			Status:     checkShiftApproval(db, phone, now.Format("02/01/2006"), now.Format("15:04"), "", "", false),
 		}
 
 		if err := db.Shifts().Create(&shift); err != nil {
@@ -499,11 +559,14 @@ func clockOutHandler(db domain.Registry) gin.HandlerFunc {
 
 		activeShift.EndTime = req.EndTime
 		activeShift.Notes = req.Notes
+		activeShift.Status = checkShiftApproval(db, phone, activeShift.Date, activeShift.StartTime, req.EndTime, req.Notes, false)
 
 		if err := db.Shifts().Update(activeShift); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביציאה מהמשמרת"})
 			return
 		}
+
+		consumePlannedShift(db, phone, activeShift.Date)
 
 		c.JSON(http.StatusOK, gin.H{"message": "יציאה ממשמרת עודכנה בהצלחה"})
 	}
@@ -525,7 +588,7 @@ func submitDrivingReportHandler(db domain.Registry) gin.HandlerFunc {
 
 		report := models.DrivingReport{
 			UserPhone:   phone,
-			Date:        time.Now().Format("02/01/2006"),
+			Date:        utils.Now().Format("02/01/2006"),
 			Description: description,
 			TotalCost:   totalCost,
 		}
@@ -545,7 +608,7 @@ func submitDrivingReportHandler(db domain.Registry) gin.HandlerFunc {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביצירת תיקיית העלאות"})
 				return
 			}
-			safeName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), filepath.Base(header.Filename))
+			safeName := fmt.Sprintf("%d_%s", utils.Now().UnixNano(), filepath.Base(header.Filename))
 			destPath := filepath.Join(uploadsDir, safeName)
 			dest, err := os.Create(destPath)
 			if err != nil {
@@ -776,6 +839,110 @@ func getTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
+// POST /manager/team/shifts — Manager assigns a future shift to an employee
+func assignShiftHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		managerPhone := c.GetString("phone")
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
+			return
+		}
+
+		var req models.Shift
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "קלט לא תקין"})
+			return
+		}
+
+		// Verify the employee belongs to this manager
+		employee, err := db.Users().GetByPhone(req.AssignedTo)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "עובד לא נמצא"})
+			return
+		}
+
+		// Check if manager manages this employee
+		historyRecords, err := db.EmployeeManagerHistories().GetHistoryByManager(manager.ID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בבדיקת ההרשאות"})
+			return
+		}
+
+		isManaged := false
+		for _, record := range historyRecords {
+			if record.EmployeeIndex == employee.ID {
+				isManaged = true
+				break
+			}
+		}
+
+		if !isManaged {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה לשבץ עובד זה"})
+			return
+		}
+
+		req.AssignedBy = managerPhone
+		req.Type = "planned"
+
+		if err := db.Shifts().Create(&req); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביצירת המשמרת"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{"message": "משמרת שובצה בהצלחה", "shift": req})
+	}
+}
+
+// PUT /manager/shifts/:id/approve — Manager approves a pending shift
+func approveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idStr := c.Param("id")
+		id64, err := strconv.ParseUint(idStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "מזהה משמרת לא תקין"})
+			return
+		}
+
+		shift, err := db.Shifts().GetByID(uint(id64))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "משמרת לא נמצאה"})
+			return
+		}
+
+		managerPhone := c.GetString("phone")
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה"})
+			return
+		}
+
+		// (Optional) Check history records if manager manages this employee
+		historyRecords, _ := db.EmployeeManagerHistories().GetHistoryByManager(manager.ID)
+		isManaged := false
+		employee, _ := db.Users().GetByPhone(shift.AssignedTo)
+		for _, record := range historyRecords {
+			if record.EmployeeIndex == employee.ID {
+				isManaged = true
+				break
+			}
+		}
+
+		if !isManaged {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה לאשר משמרת זו"})
+			return
+		}
+
+		shift.Status = "approved"
+		if err := db.Shifts().Update(shift); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה באישור המשמרת"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "משמרת אושרה בהצלחה"})
+	}
+}
+
 // PUT /users/:id — Manager updates their employee's details
 func updateEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -870,7 +1037,7 @@ func deleteEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 		}
 
 		// Close any active manager assignments in history by setting end_date to now
-		if err := db.EmployeeManagerHistories().CloseActiveRecord(userID, time.Now().Format("02/01/2006")); err != nil {
+		if err := db.EmployeeManagerHistories().CloseActiveRecord(userID, utils.Now().Format("02/01/2006")); err != nil {
 			log.Printf("ERROR: Failed to close active manager history on deletion: %v\n", err)
 		}
 
@@ -889,7 +1056,7 @@ func exportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 		month := c.Query("month")
 		year := c.Query("year")
 
-		now := time.Now()
+		now := utils.Now()
 		if month == "" {
 			month = fmt.Sprintf("%02d", now.Month())
 		}

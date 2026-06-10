@@ -3,7 +3,7 @@
 import { API_BASE_URL } from '../config';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, ArrowRight, Pencil, Trash2, Check, X } from 'lucide-react';
+import { Clock, ArrowRight, Pencil, Check, X, CalendarPlus } from 'lucide-react';
 
 const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
@@ -31,13 +31,13 @@ const ReportedShiftsPage = () => {
     const router = useRouter();
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'reported' | 'planned'>('reported');
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editForm, setEditForm] = useState<EditForm>({ date: '', startTime: '', endTime: '', notes: '' });
     const [saving, setSaving] = useState(false);
-    const [deleting, setDeleting] = useState<number | null>(null);
     const [error, setError] = useState('');
 
-    const fetchShifts = async () => {
+    const fetchShifts = React.useCallback(async () => {
         try {
             const res = await fetch(`${API_BASE_URL}/shifts`, { credentials: 'include' });
             if (!res.ok) {
@@ -51,25 +51,49 @@ const ReportedShiftsPage = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [router]);
 
     useEffect(() => {
-        (async () => {
-            try {
-                const res = await fetch(`${API_BASE_URL}/shifts`, { credentials: 'include' });
-                if (!res.ok) {
-                    if (res.status === 401) router.push('/');
-                    return;
-                }
-                const data = await res.json();
-                setShifts(Array.isArray(data) ? data : []);
-            } catch (err) {
-                console.error("Error fetching shifts", err);
-            } finally {
-                setLoading(false);
+        fetchShifts();
+    }, [fetchShifts]);
+
+    const addToGoogleCalendar = (shift: Shift) => {
+        try {
+            const [day, month, year] = shift.date.split('/');
+            
+            const startHour = shift.startTime ? parseInt(shift.startTime.split(':')[0], 10) : 9;
+            const startMin = shift.startTime ? parseInt(shift.startTime.split(':')[1], 10) : 0;
+            
+            const startDate = new Date(Number(year), Number(month) - 1, Number(day), startHour, startMin);
+            
+            let endDate = new Date(startDate);
+            if (shift.endTime) {
+                const endHour = parseInt(shift.endTime.split(':')[0], 10);
+                const endMin = parseInt(shift.endTime.split(':')[1], 10);
+                endDate = new Date(Number(year), Number(month) - 1, Number(day), endHour, endMin);
+            } else {
+                endDate.setHours(endDate.getHours() + 8);
             }
-        })();
-    }, [router]);
+            
+            const pad = (n: number) => n.toString().padStart(2, '0');
+            const formatForGoogle = (date: Date) => {
+                return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}T${pad(date.getHours())}${pad(date.getMinutes())}00`;
+            };
+            
+            const startStr = formatForGoogle(startDate);
+            const endStr = formatForGoogle(endDate);
+            
+            const title = encodeURIComponent('משמרת במרכז לצדק חברתי');
+            const details = encodeURIComponent(shift.notes || 'משמרת מתוכננת');
+            
+            const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${details}&ctz=Asia/Jerusalem`;
+            
+            window.open(url, '_blank');
+        } catch (e) {
+            console.error("Failed to generate Google Calendar link", e);
+            alert("שגיאה בפתיחת היומן");
+        }
+    };
 
     const startEdit = (shift: Shift) => {
         setEditingId(shift.ID);
@@ -111,22 +135,11 @@ const ReportedShiftsPage = () => {
         }
     };
 
-    const deleteShift = async (id: number) => {
-        if (!confirm('האם למחוק משמרת זו?')) return;
-        setDeleting(id);
-        try {
-            const res = await fetch(`${API_BASE_URL}/shifts/${id}`, {
-                method: 'DELETE',
-                credentials: 'include',
-            });
-            if (res.ok) {
-                setShifts(prev => prev.filter(s => s.ID !== id));
-            }
-        } catch { /* ignore */ }
-        finally { setDeleting(null); }
-    };
-
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
+
+    const displayedShifts = shifts.filter(s => 
+        activeTab === 'planned' ? s.type === 'planned' : s.type !== 'planned'
+    );
 
     if (loading) return (
         <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">
@@ -160,13 +173,29 @@ const ReportedShiftsPage = () => {
                     </div>
                 )}
 
+                {/* Tabs */}
+                <div className="flex bg-white rounded-xl shadow-sm mb-6 p-1 border-2" style={{ borderColor: INPUT_BG }}>
+                    <button
+                        onClick={() => setActiveTab('reported')}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'reported' ? 'bg-[#0284C7] text-white' : 'text-[#0284C7] hover:bg-sky-50'}`}
+                    >
+                        משמרות שדווחו (עבר)
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('planned')}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'planned' ? 'bg-[#0284C7] text-white' : 'text-[#0284C7] hover:bg-sky-50'}`}
+                    >
+                        משמרות עתידיות
+                    </button>
+                </div>
+
                 {/* Shifts List */}
                 <div className="bg-white rounded-2xl shadow-lg p-6" style={{ border: `2px solid ${BRAND_BLUE}` }}>
-                    {shifts.length === 0 ? (
+                    {displayedShifts.length === 0 ? (
                         <p className="text-center text-gray-400 py-10 font-bold text-lg">אין משמרות עדיין</p>
                     ) : (
                         <ul className="space-y-4">
-                            {shifts.map((shift) => (
+                            {displayedShifts.map((shift) => (
                                 <li key={shift.ID} className="border-2 rounded-xl p-4 flex flex-col gap-3"
                                     style={{ borderColor: editingId === shift.ID ? BRAND_BLUE : INPUT_BG }}>
 
@@ -272,8 +301,16 @@ const ReportedShiftsPage = () => {
                                                     {shift.type === 'reported' ? 'דיווח עצמי' : 'מתוכנן'}
                                                 </span>
 
-                                                {/* Edit / Delete */}
+                                                {/* Edit / Delete / Calendar */}
                                                 <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => addToGoogleCalendar(shift)}
+                                                        className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-blue-50 text-blue-700"
+                                                        style={{ borderColor: BRAND_BLUE }}
+                                                    >
+                                                        <CalendarPlus size={14} />
+                                                        ליומן
+                                                    </button>
                                                     <button
                                                         onClick={() => startEdit(shift)}
                                                         className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-gray-50"
@@ -281,15 +318,6 @@ const ReportedShiftsPage = () => {
                                                     >
                                                         <Pencil size={14} />
                                                         עריכה
-                                                    </button>
-                                                    <button
-                                                        onClick={() => deleteShift(shift.ID)}
-                                                        disabled={deleting === shift.ID}
-                                                        className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-red-50 disabled:opacity-40"
-                                                        style={{ borderColor: '#dc2626', color: '#dc2626' }}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                        {deleting === shift.ID ? '...' : 'מחיקה'}
                                                     </button>
                                                 </div>
                                             </div>

@@ -16,10 +16,14 @@ const ManagerPage = () => {
 
     // Export Modal States
     const [exportMonth, setExportMonth] = useState(() => {
-        const m = new Date().getMonth() + 1;
+        const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+        const m = new Date(str).getMonth() + 1;
         return m < 10 ? `0${m}` : `${m}`;
     });
-    const [exportYear, setExportYear] = useState(() => new Date().getFullYear().toString());
+    const [exportYear, setExportYear] = useState(() => {
+        const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+        return new Date(str).getFullYear().toString();
+    });
     const [exportError, setExportError] = useState('');
     const [isExporting, setIsExporting] = useState(false);
 

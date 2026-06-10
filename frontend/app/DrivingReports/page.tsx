@@ -25,8 +25,9 @@ interface EditForm {
 }
 
 const today = () => {
-    const d = new Date();
-    return d.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\./g, '/');
+    const str = new Date().toLocaleString("en-US", { timeZone: "Asia/Jerusalem" });
+    const d = new Date(str);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
 const DrivingReportsPage = () => {

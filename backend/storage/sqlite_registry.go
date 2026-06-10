@@ -138,6 +138,12 @@ func (s *shiftStore) GetActiveShift(phone string) (*models.Shift, error) {
 	return &activeShift, err
 }
 
+func (s *shiftStore) GetAllActiveShifts() ([]models.Shift, error) {
+	var activeShifts []models.Shift
+	err := s.db.Where("end_time = ? AND (work_duration = ? OR work_duration IS NULL)", "", "").Find(&activeShifts).Error
+	return activeShifts, err
+}
+
 func (s *shiftStore) Update(shift *models.Shift) error {
 	return s.db.Save(shift).Error
 }
