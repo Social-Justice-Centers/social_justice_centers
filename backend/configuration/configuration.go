@@ -1,4 +1,4 @@
-package Initialization
+package Configuration
 
 const (
 	FULL_DAY_LENGTH = 8.0
