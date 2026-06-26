@@ -1,0 +1,5 @@
+backend/.env
+backend/data/app.db
+backend/my-backend.exe
+node_modules/
+.next/
