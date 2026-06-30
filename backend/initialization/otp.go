@@ -198,7 +198,7 @@ func SendRejectionEmail(toEmail string, shiftDate string, shiftTime string) erro
 	}
 
 	subject := "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte("עדכון לגבי דיווח משמרת")) + "?="
-	body := fmt.Sprintf("שלום,\r\n\r\nהדיווח שלך עבור המשמרת בתאריך %s בשעות %s נדחה על ידי המנהל.\r\n\r\nבברכה,\r\nצוות מרכזי הצדק.", shiftDate, shiftTime)
+	body := fmt.Sprintf("שלום,\r\n\r\nהדיווח שלך עבור המשמרת בתאריך %s בשעות %s נדחה על ידי המנהל.\r\n\r\nבברכה,\r\nמרכזים לצדק חברתי.", shiftDate, shiftTime)
 	msg := []byte(
 		"To: " + toEmail + "\r\n" +
 			"From: " + user + "\r\n" +
