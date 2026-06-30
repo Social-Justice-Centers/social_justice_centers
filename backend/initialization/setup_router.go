@@ -357,6 +357,11 @@ func updateShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		shift.Date = req.Date
 		shift.StartTime = req.StartTime
 		shift.EndTime = req.EndTime
@@ -475,6 +480,11 @@ func reportShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		phone := c.GetString("phone")
 
 		req.AssignedTo = phone
@@ -559,6 +569,11 @@ func clockOutHandler(db domain.Registry) gin.HandlerFunc {
 		activeShift, err := db.Shifts().GetActiveShift(phone)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "לא נמצאה משמרת פעילה לסיום"})
+			return
+		}
+
+		if err := validateShiftTimes(activeShift.Date, activeShift.StartTime, req.EndTime); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
@@ -887,14 +902,15 @@ func assignShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// Verify shift start time is in the future
-		now := utils.Now()
-		shiftStart, err := time.ParseInLocation("02/01/2006 15:04", req.Date+" "+req.StartTime, now.Location())
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "פורמט תאריך או שעה לא תקין (נדרש DD/MM/YYYY ו- HH:MM)"})
+		// Validate date and times
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
+		// Verify shift start time is in the future
+		now := utils.Now()
+		shiftStart, _ := time.ParseInLocation("02/01/2006 15:04", req.Date+" "+req.StartTime, now.Location())
 		if shiftStart.Before(now) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "זמן המשמרת כבר עבר, לא ניתן לשבץ משמרת בעבר"})
 			return
@@ -1296,4 +1312,35 @@ func parseTimeToMinutes(tStr string) (int, error) {
 		return 0, fmt.Errorf("invalid integers")
 	}
 	return hrs*60 + mins, nil
+}
+
+func validateShiftTimes(date string, startTime string, endTime string) error {
+	// 1. Validate Date (DD/MM/YYYY)
+	tDate, err := time.Parse("02/01/2006", date)
+	if err != nil {
+		return fmt.Errorf("תאריך לא תקין, נדרש פורמט DD/MM/YYYY (לדוגמה 15/06/2026)")
+	}
+	if tDate.Year() < 2000 || tDate.Year() > 2100 {
+		return fmt.Errorf("שנת התאריך חייבת להיות בין 2000 ל-2100")
+	}
+
+	// 2. Validate StartTime (HH:MM)
+	tStart, err := time.Parse("15:04", startTime)
+	if err != nil {
+		return fmt.Errorf("שעת התחלה לא תקינה, נדרש פורמט HH:MM (לדוגמה 08:30)")
+	}
+
+	// 3. Validate EndTime (HH:MM) if not empty
+	if endTime != "" {
+		tEnd, err := time.Parse("15:04", endTime)
+		if err != nil {
+			return fmt.Errorf("שעת סיום לא תקינה, נדרש פורמט HH:MM (לדוגמה 17:00)")
+		}
+
+		if !tEnd.After(tStart) {
+			return fmt.Errorf("שעת סיום חייבת להיות אחרי שעת התחלה")
+		}
+	}
+
+	return nil
 }
