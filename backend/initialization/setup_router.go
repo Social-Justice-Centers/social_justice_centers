@@ -993,6 +993,17 @@ func rejectManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		// Send rejection email to employee if email is set
+		if employee.Email != "" {
+			shiftTime := fmt.Sprintf("%s-%s", shift.StartTime, shift.EndTime)
+			if shift.EndTime == "" {
+				shiftTime = shift.StartTime
+			}
+			if err := SendRejectionEmail(employee.Email, shift.Date, shiftTime); err != nil {
+				log.Printf("ERROR: Failed to send rejection email to %s: %v\n", employee.Email, err)
+			}
+		}
+
 		c.JSON(http.StatusOK, gin.H{"message": "משמרת נדחתה בהצלחה"})
 	}
 }
