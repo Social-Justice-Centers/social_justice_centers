@@ -9,6 +9,21 @@ const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
 const INPUT_BG = '#E0F2FE';
 
+const formatDateInput = (value: string): string => {
+    const digits = value.replace(/\D/g, '').slice(0, 8);
+    let formatted = '';
+    if (digits.length > 0) {
+        formatted += digits.slice(0, 2);
+    }
+    if (digits.length > 2) {
+        formatted += '/' + digits.slice(2, 4);
+    }
+    if (digits.length > 4) {
+        formatted += '/' + digits.slice(4, 8);
+    }
+    return formatted;
+};
+
 interface Shift {
     ID: number;
     assignedTo: string;
@@ -227,7 +242,7 @@ const ReportedShiftsPage = () => {
                                                     className={inputClass}
                                                     style={{ backgroundColor: INPUT_BG, color: BRAND_BLUE }}
                                                     value={editForm.date}
-                                                    onChange={e => setEditForm({ ...editForm, date: e.target.value })}
+                                                    onChange={e => setEditForm({ ...editForm, date: formatDateInput(e.target.value) })}
                                                 />
                                             </div>
 
