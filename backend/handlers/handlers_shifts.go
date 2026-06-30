@@ -96,7 +96,7 @@ func ClockOutHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(activeShift.Date, activeShift.StartTime, req.EndTime); err != nil {
+		if err := validateShiftTimes(activeShift.Date, activeShift.StartTime, req.EndTime, activeShift.WorkDuration); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -125,7 +125,7 @@ func ReportShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime); err != nil {
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, req.WorkDuration); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -188,7 +188,7 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime); err != nil {
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, shift.WorkDuration); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -316,7 +316,7 @@ func parseTimeToMinutes(tStr string) (int, error) {
 	return hrs*60 + mins, nil
 }
 
-func validateShiftTimes(date string, startTime string, endTime string) error {
+func validateShiftTimes(date string, startTime string, endTime string, workDuration string) error {
 	// 1. Validate Date (DD/MM/YYYY)
 	tDate, err := time.Parse("02/01/2006", date)
 	if err != nil {
@@ -324,6 +324,11 @@ func validateShiftTimes(date string, startTime string, endTime string) error {
 	}
 	if tDate.Year() < 2000 || tDate.Year() > 2100 {
 		return fmt.Errorf("שנת התאריך חייבת להיות בין 2000 ל-2100")
+	}
+
+	// Skip time validations if this is a flexible shift day option report (duration is set)
+	if workDuration != "" {
+		return nil
 	}
 
 	// 2. Validate StartTime (HH:MM)

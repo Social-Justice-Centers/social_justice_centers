@@ -109,7 +109,7 @@ func AssignShiftHandler(db domain.Registry) gin.HandlerFunc {
 		}
 
 		// Validate date and times
-		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime); err != nil {
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, req.WorkDuration); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
