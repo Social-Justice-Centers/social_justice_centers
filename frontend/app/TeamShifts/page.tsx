@@ -56,7 +56,7 @@ const TeamShiftsPage = () => {
     const [assignError, setAssignError] = useState('');
     const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
 
-    const [activeTab, setActiveTab] = useState<'reported' | 'planned'>('reported');
+    const [activeTab, setActiveTab] = useState<'reported' | 'planned' | 'rejected'>('reported');
 
     const fetchShifts = async () => {
         try {
@@ -222,10 +222,10 @@ const TeamShiftsPage = () => {
     };
 
     const rejectShift = async (id: number) => {
-        if (!confirm('לדחות ולמחוק את המשמרת לצמיתות?')) return;
+        if (!confirm('האם אתה בטוח שברצונך לדחות משמרת זו?')) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/shifts/${id}`, {
-                method: 'DELETE',
+            const res = await fetch(`${API_BASE_URL}/manager/shifts/${id}/reject`, {
+                method: 'PUT',
                 credentials: 'include'
             });
             if (res.ok) await fetchShifts();
@@ -246,7 +246,12 @@ const TeamShiftsPage = () => {
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
 
     const displayed = shifts.filter(s => {
-        const matchesTab = activeTab === 'planned' ? s.type === 'planned' : s.type !== 'planned';
+        const matchesTab = 
+            activeTab === 'planned' 
+                ? s.type === 'planned' && s.status !== 'rejected'
+                : activeTab === 'rejected'
+                ? s.status === 'rejected'
+                : s.type !== 'planned' && s.status !== 'rejected';
         const matchesFilter = !filter || (s.employeeName || '').toLowerCase().includes(filter.toLowerCase());
         return matchesTab && matchesFilter;
     });
@@ -316,6 +321,12 @@ const TeamShiftsPage = () => {
                         className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'planned' ? 'bg-[#0284C7] text-white' : 'text-[#0284C7] hover:bg-sky-50'}`}
                     >
                         משמרות עתידיות
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('rejected')}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'rejected' ? 'bg-[#0284C7] text-white' : 'text-[#0284C7] hover:bg-sky-50'}`}
+                    >
+                        משמרות שנדחו
                     </button>
                 </div>
 
@@ -422,6 +433,16 @@ const TeamShiftsPage = () => {
                                                             לא הוקצתה - דורש אישור
                                                         </span>
                                                     )}
+                                                    {shift.status === 'rejected' && (
+                                                        <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                            נדחתה
+                                                        </span>
+                                                    )}
+                                                    {shift.status === 'approved' && shift.type === 'reported' && (
+                                                        <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                            מאושרת
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 <span className="font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full text-sm">
                                                     {shift.startTime} — {shift.endTime || 'פעילה'}
@@ -448,6 +469,10 @@ const TeamShiftsPage = () => {
                                                             <X size={16} /> דחייה
                                                         </button>
                                                     </>
+                                                ) : shift.status === 'rejected' ? (
+                                                    <span className="bg-red-50 text-red-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-red-200">
+                                                        משמרת זו נדחתה
+                                                    </span>
                                                 ) : (
                                                     <>
                                                         {shift.type === 'planned' && (
