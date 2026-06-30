@@ -215,3 +215,42 @@ func SendRejectionEmail(toEmail string, shiftDate string, shiftTime string) erro
 	}
 	return smtp.SendMail(host+":"+port, auth, user, []string{toEmail}, msg)
 }
+
+func SendUpcomingShiftEmail(toEmail string, shiftDate string, shiftStartTime string) error {
+	host := os.Getenv("SMTP_HOST")
+	if host == "" {
+		host = "smtp.gmail.com"
+	}
+	port := os.Getenv("SMTP_PORT")
+	if port == "" {
+		port = "587"
+	}
+	user := os.Getenv("SMTP_USER")
+	if user == "" {
+		user = "sjcenter@gmail.com"
+	}
+	pass := os.Getenv("SMTP_PASS")
+
+	if pass == "" {
+		log.Printf("[DEV WARN] SMTP_PASS not set! Upcoming Shift Email for <%s>, Date: %s, StartTime: %s\n", toEmail, shiftDate, shiftStartTime)
+		return nil
+	}
+
+	subject := "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte("תזכורת: משמרת קרובה במרכז לצדק חברתי")) + "?="
+	body := fmt.Sprintf("שלום,\r\n\r\nתזכורת: יש לך משמרת מתוכננת בתאריך %s שמתחילה בשעה %s.\r\nאנא זכור להגיע בזמן ולדווח כניסה.\r\n\r\nבברכה,\r\nמרכזים לצדק חברתי.", shiftDate, shiftStartTime)
+	msg := []byte(
+		"To: " + toEmail + "\r\n" +
+			"From: " + user + "\r\n" +
+			"Subject: " + subject + "\r\n" +
+			"Content-Type: text/plain; charset=UTF-8\r\n" +
+			"\r\n" +
+			body,
+	)
+
+	auth := smtp.PlainAuth("", user, pass, host)
+
+	if port == "465" {
+		return sendViaTLS(host, port, auth, user, toEmail, msg)
+	}
+	return smtp.SendMail(host+":"+port, auth, user, []string{toEmail}, msg)
+}

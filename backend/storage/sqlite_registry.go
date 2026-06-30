@@ -154,6 +154,13 @@ func (s *shiftStore) GetByID(id uint) (*models.Shift, error) {
 	return &shift, err
 }
 
+func (s *shiftStore) GetAllPlannedShifts() ([]models.Shift, error) {
+	var shifts []models.Shift
+	err := s.db.Where("type = ? AND reminder_sent = ?", "planned", false).Find(&shifts).Error
+	return shifts, err
+}
+
+
 // =============================================================================
 // Driving Report Store
 // =============================================================================
