@@ -887,6 +887,19 @@ func assignShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		// Verify shift start time is in the future
+		now := utils.Now()
+		shiftStart, err := time.ParseInLocation("02/01/2006 15:04", req.Date+" "+req.StartTime, now.Location())
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "פורמט תאריך או שעה לא תקין (נדרש DD/MM/YYYY ו- HH:MM)"})
+			return
+		}
+
+		if shiftStart.Before(now) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "זמן המשמרת כבר עבר, לא ניתן לשבץ משמרת בעבר"})
+			return
+		}
+
 		req.AssignedBy = managerPhone
 		req.Type = "planned"
 
