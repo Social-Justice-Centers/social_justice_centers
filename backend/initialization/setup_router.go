@@ -1164,7 +1164,7 @@ func exportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 			if err == nil {
 				for _, s := range shifts {
 					// Date format: DD/MM/YYYY
-					if len(s.Date) == 10 && s.Date[3:5] == month && s.Date[6:10] == year && s.Type == "reported" {
+					if len(s.Date) == 10 && s.Date[3:5] == month && s.Date[6:10] == year && s.Type == "reported" && s.Status == "approved" {
 						if s.EndTime != "" {
 							// Parse StartTime & EndTime
 							startMins, err1 := parseTimeToMinutes(s.StartTime)
