@@ -18,6 +18,7 @@ interface Shift {
     startTime: string;
     endTime: string;
     notes: string;
+    status: string;
 }
 
 interface EditForm {
@@ -31,7 +32,7 @@ const ReportedShiftsPage = () => {
     const router = useRouter();
     const [shifts, setShifts] = useState<Shift[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'reported' | 'planned'>('reported');
+    const [activeTab, setActiveTab] = useState<'reported' | 'planned' | 'rejected'>('reported');
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editForm, setEditForm] = useState<EditForm>({ date: '', startTime: '', endTime: '', notes: '' });
     const [saving, setSaving] = useState(false);
@@ -137,9 +138,15 @@ const ReportedShiftsPage = () => {
 
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
 
-    const displayedShifts = shifts.filter(s => 
-        activeTab === 'planned' ? s.type === 'planned' : s.type !== 'planned'
-    );
+    const displayedShifts = shifts.filter(s => {
+        if (activeTab === 'rejected') {
+            return s.status === 'rejected';
+        }
+        if (activeTab === 'planned') {
+            return s.type === 'planned' && s.status !== 'rejected';
+        }
+        return s.type !== 'planned' && s.status !== 'rejected';
+    });
 
     if (loading) return (
         <div style={{ backgroundColor: BG_CREAM }} className="flex min-h-screen items-center justify-center">
@@ -186,6 +193,12 @@ const ReportedShiftsPage = () => {
                         className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'planned' ? 'bg-[#0284C7] text-white' : 'text-[#0284C7] hover:bg-sky-50'}`}
                     >
                         משמרות עתידיות
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('rejected')}
+                        className={`flex-1 py-2 text-sm font-bold rounded-lg transition ${activeTab === 'rejected' ? 'bg-[#0284C7] text-white' : 'text-[#0284C7] hover:bg-sky-50'}`}
+                    >
+                        משמרות שנדחו
                     </button>
                 </div>
 
@@ -293,32 +306,49 @@ const ReportedShiftsPage = () => {
 
                                             {/* Type badge */}
                                             <div className="flex items-center justify-between">
-                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                                    shift.type === 'reported'
-                                                        ? 'bg-green-100 text-green-700'
-                                                        : 'bg-blue-100 text-blue-700'
-                                                }`}>
-                                                    {shift.type === 'reported' ? 'דיווח עצמי' : 'מתוכנן'}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                        shift.type === 'reported'
+                                                            ? 'bg-green-100 text-green-700'
+                                                            : 'bg-blue-100 text-blue-700'
+                                                    }`}>
+                                                        {shift.type === 'reported' ? 'דיווח עצמי' : 'מתוכנן'}
+                                                    </span>
+                                                    {shift.type === 'reported' && (
+                                                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                            shift.status === 'approved'
+                                                                ? 'bg-emerald-100 text-emerald-700'
+                                                                : shift.status === 'rejected'
+                                                                ? 'bg-red-100 text-red-700'
+                                                                : 'bg-amber-100 text-amber-700'
+                                                        }`}>
+                                                            {shift.status === 'approved' ? 'מאושר' : shift.status === 'rejected' ? 'נדחה' : 'ממתין לאישור'}
+                                                        </span>
+                                                    )}
+                                                </div>
 
                                                 {/* Edit / Delete / Calendar */}
                                                 <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => addToGoogleCalendar(shift)}
-                                                        className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-blue-50 text-blue-700"
-                                                        style={{ borderColor: BRAND_BLUE }}
-                                                    >
-                                                        <CalendarPlus size={14} />
-                                                        ליומן
-                                                    </button>
-                                                    <button
-                                                        onClick={() => startEdit(shift)}
-                                                        className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-gray-50"
-                                                        style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
-                                                    >
-                                                        <Pencil size={14} />
-                                                        עריכה
-                                                    </button>
+                                                    {shift.status !== 'rejected' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => addToGoogleCalendar(shift)}
+                                                                className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-blue-50 text-blue-700"
+                                                                style={{ borderColor: BRAND_BLUE }}
+                                                            >
+                                                                <CalendarPlus size={14} />
+                                                                ליומן
+                                                            </button>
+                                                            <button
+                                                                onClick={() => startEdit(shift)}
+                                                                className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-gray-50"
+                                                                style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
+                                                            >
+                                                                <Pencil size={14} />
+                                                                עריכה
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </>

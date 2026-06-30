@@ -93,6 +93,7 @@ func SetupRouter(db domain.Registry) *gin.Engine {
 		mgr.GET("/manager/team/shifts", getTeamShiftsHandler(db))
 		mgr.POST("/manager/team/shifts", assignShiftHandler(db))
 		mgr.PUT("/manager/shifts/:id/approve", approveManagerShiftHandler(db))
+		mgr.PUT("/manager/shifts/:id/reject", rejectManagerShiftHandler(db))
 		mgr.GET("/manager/export/michpal", exportMichpalHandler(db))
 	}
 
@@ -943,6 +944,71 @@ func approveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
+// PUT /manager/shifts/:id/reject — Manager rejects a pending/reported shift
+func rejectManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		idStr := c.Param("id")
+		id64, err := strconv.ParseUint(idStr, 10, 32)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "מזהה משמרת לא תקין"})
+			return
+		}
+
+		shift, err := db.Shifts().GetByID(uint(id64))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "משמרת לא נמצאה"})
+			return
+		}
+
+		managerPhone := c.GetString("phone")
+		manager, err := db.Users().GetByPhone(managerPhone)
+		if err != nil {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה"})
+			return
+		}
+
+		// Check if manager manages this employee
+		historyRecords, _ := db.EmployeeManagerHistories().GetHistoryByManager(manager.ID)
+		isManaged := false
+		employee, err := db.Users().GetByPhone(shift.AssignedTo)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "עובד לא נמצא"})
+			return
+		}
+		for _, record := range historyRecords {
+			if record.EmployeeIndex == employee.ID {
+				isManaged = true
+				break
+			}
+		}
+
+		if !isManaged {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה לדחות משמרת זו"})
+			return
+		}
+
+		shift.Status = "rejected"
+		if err := db.Shifts().Update(shift); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בדחיית המשמרת"})
+			return
+		}
+
+		// Send rejection email to employee if email is set
+		if employee.Email != "" {
+			shiftTime := fmt.Sprintf("%s-%s", shift.StartTime, shift.EndTime)
+			if shift.EndTime == "" {
+				shiftTime = shift.StartTime
+			}
+			if err := SendRejectionEmail(employee.Email, shift.Date, shiftTime); err != nil {
+				log.Printf("ERROR: Failed to send rejection email to %s: %v\n", employee.Email, err)
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{"message": "משמרת נדחתה בהצלחה"})
+	}
+}
+
+
 // PUT /users/:id — Manager updates their employee's details
 func updateEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -1098,7 +1164,7 @@ func exportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 			if err == nil {
 				for _, s := range shifts {
 					// Date format: DD/MM/YYYY
-					if len(s.Date) == 10 && s.Date[3:5] == month && s.Date[6:10] == year && s.Type == "reported" {
+					if len(s.Date) == 10 && s.Date[3:5] == month && s.Date[6:10] == year && s.Type == "reported" && s.Status == "approved" {
 						if s.EndTime != "" {
 							// Parse StartTime & EndTime
 							startMins, err1 := parseTimeToMinutes(s.StartTime)

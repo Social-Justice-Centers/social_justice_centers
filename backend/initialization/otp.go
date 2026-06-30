@@ -176,3 +176,42 @@ func SendReminderEmail(toEmail string) error {
 	}
 	return smtp.SendMail(host+":"+port, auth, user, []string{toEmail}, msg)
 }
+
+func SendRejectionEmail(toEmail string, shiftDate string, shiftTime string) error {
+	host := os.Getenv("SMTP_HOST")
+	if host == "" {
+		host = "smtp.gmail.com"
+	}
+	port := os.Getenv("SMTP_PORT")
+	if port == "" {
+		port = "587"
+	}
+	user := os.Getenv("SMTP_USER")
+	if user == "" {
+		user = "sjcenter@gmail.com"
+	}
+	pass := os.Getenv("SMTP_PASS")
+
+	if pass == "" {
+		log.Printf("[DEV WARN] SMTP_PASS not set! Shift Rejection Email for <%s>, Date: %s, Time: %s\n", toEmail, shiftDate, shiftTime)
+		return nil
+	}
+
+	subject := "=?UTF-8?B?" + base64.StdEncoding.EncodeToString([]byte("עדכון לגבי דיווח משמרת")) + "?="
+	body := fmt.Sprintf("שלום,\r\n\r\nהדיווח שלך עבור המשמרת בתאריך %s בשעות %s נדחה על ידי המנהל.\r\n\r\nבברכה,\r\nמרכזים לצדק חברתי.", shiftDate, shiftTime)
+	msg := []byte(
+		"To: " + toEmail + "\r\n" +
+			"From: " + user + "\r\n" +
+			"Subject: " + subject + "\r\n" +
+			"Content-Type: text/plain; charset=UTF-8\r\n" +
+			"\r\n" +
+			body,
+	)
+
+	auth := smtp.PlainAuth("", user, pass, host)
+
+	if port == "465" {
+		return sendViaTLS(host, port, auth, user, toEmail, msg)
+	}
+	return smtp.SendMail(host+":"+port, auth, user, []string{toEmail}, msg)
+}
