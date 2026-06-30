@@ -362,6 +362,10 @@ func updateShiftHandler(db domain.Registry) gin.HandlerFunc {
 		shift.EndTime = req.EndTime
 		shift.Notes = req.Notes
 
+		if !isManager {
+			shift.Status = "pending"
+		}
+
 		if err := db.Shifts().Update(shift); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בעדכון המשמרת"})
 			return
