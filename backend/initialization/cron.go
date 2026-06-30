@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"my-backend/domain"
+	"my-backend/handlers"
 	"my-backend/utils"
 )
 
@@ -55,7 +56,7 @@ func checkAndSendReminders(db domain.Registry) {
 				if now.Sub(plannedEnd).Minutes() >= 30 {
 					user, err := db.Users().GetByPhone(active.AssignedTo)
 					if err == nil && user.Email != "" {
-						err := SendReminderEmail(user.Email)
+						err := handlers.SendReminderEmail(user.Email)
 						if err != nil {
 							log.Printf("checkAndSendReminders: Failed to send email to %s: %v", user.Email, err)
 						} else {
@@ -95,7 +96,7 @@ func checkAndSendUpcomingShiftReminders(db domain.Registry) {
 		if diff.Minutes() <= 30 && diff.Minutes() > 0 {
 			user, err := db.Users().GetByPhone(p.AssignedTo)
 			if err == nil && user.Email != "" {
-				err := SendUpcomingShiftEmail(user.Email, p.Date, p.StartTime)
+				err := handlers.SendUpcomingShiftEmail(user.Email, p.Date, p.StartTime)
 				if err != nil {
 					log.Printf("checkAndSendUpcomingShiftReminders: Failed to send email to %s: %v", user.Email, err)
 				} else {
