@@ -46,12 +46,10 @@ func checkAndSendReminders(db domain.Registry) {
 
 		for _, p := range plannedShifts {
 			if p.Type == "planned" && p.EndTime != "" {
-				t, err := time.Parse("15:04", p.EndTime)
+				plannedEnd, err := time.ParseInLocation("02/01/2006 15:04", p.Date+" "+p.EndTime, now.Location())
 				if err != nil {
 					continue
 				}
-
-				plannedEnd := time.Date(now.Year(), now.Month(), now.Day(), t.Hour(), t.Minute(), 0, 0, now.Location())
 				
 				// Check if 30 minutes have passed since the planned end time
 				if now.Sub(plannedEnd).Minutes() >= 30 {
