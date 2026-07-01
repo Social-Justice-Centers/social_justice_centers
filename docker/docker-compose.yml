@@ -9,8 +9,22 @@ services:
     env_file:
       - ../backend/.env
     volumes:
-      # Mount the database directory so data persists across container restarts
       - ../backend/data:/app/data
+    depends_on:
+      - mysql-db
+
+  mysql-db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sjc_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
 
   frontend:
     build:
@@ -26,3 +40,6 @@ services:
     environment:
       - BACKEND_URL=http://backend:8080
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+
+volumes:
+  mysql_data:
