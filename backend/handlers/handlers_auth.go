@@ -48,13 +48,18 @@ func RequestOTPHandler(db domain.Registry) gin.HandlerFunc {
 
 		StoreOTP(req.Phone, otp)
 
-		if err := SendOTPEmail(user.Email, otp); err != nil {
-			log.Printf("ERROR: Failed to send OTP email to %s: %v\n", user.Email, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליחת הקוד לאימייל"})
-			return
+		devPassword := os.Getenv("DEV_PASSWORD")
+		if devPassword != "" {
+			log.Println("Dev mode enabled: Skipping OTP email sending.")
+		} else {
+			if err := SendOTPEmail(user.Email, otp); err != nil {
+				log.Printf("ERROR: Failed to send OTP email to %s: %v\n", user.Email, err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליחת הקוד לאימייל"})
+				return
+			}
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "קוד נשלח לכתובת האימייל"})
+		c.JSON(http.StatusOK, gin.H{"message": "קוד נשלח לכתובת האימייל (או שדולג בגלל מצב פיתוח)"})
 	}
 }
 
