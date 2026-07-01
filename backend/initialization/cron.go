@@ -5,18 +5,20 @@ import (
 	"time"
 
 	"my-backend/domain"
+	"my-backend/handlers"
 	"my-backend/utils"
 )
 
 // StartCronJobs starts all background tasks.
 func StartCronJobs(db domain.Registry) {
 	go func() {
-		ticker := time.NewTicker(10 * time.Minute)
+		ticker := time.NewTicker(1 * time.Minute)
 		defer ticker.Stop()
 
 		for {
 			<-ticker.C
 			checkAndSendReminders(db)
+			checkAndSendUpcomingShiftReminders(db)
 		}
 	}()
 }
@@ -45,18 +47,16 @@ func checkAndSendReminders(db domain.Registry) {
 
 		for _, p := range plannedShifts {
 			if p.Type == "planned" && p.EndTime != "" {
-				t, err := time.Parse("15:04", p.EndTime)
+				plannedEnd, err := time.ParseInLocation("02/01/2006 15:04", p.Date+" "+p.EndTime, now.Location())
 				if err != nil {
 					continue
 				}
-
-				plannedEnd := time.Date(now.Year(), now.Month(), now.Day(), t.Hour(), t.Minute(), 0, 0, now.Location())
 				
 				// Check if 30 minutes have passed since the planned end time
 				if now.Sub(plannedEnd).Minutes() >= 30 {
 					user, err := db.Users().GetByPhone(active.AssignedTo)
 					if err == nil && user.Email != "" {
-						err := SendReminderEmail(user.Email)
+						err := handlers.SendReminderEmail(user.Email)
 						if err != nil {
 							log.Printf("checkAndSendReminders: Failed to send email to %s: %v", user.Email, err)
 						} else {
@@ -67,6 +67,42 @@ func checkAndSendReminders(db domain.Registry) {
 						}
 					}
 					break // Only check once per active shift
+				}
+			}
+		}
+	}
+}
+
+func checkAndSendUpcomingShiftReminders(db domain.Registry) {
+	plannedShifts, err := db.Shifts().GetAllPlannedShifts()
+	if err != nil {
+		log.Printf("checkAndSendUpcomingShiftReminders: Failed to fetch planned shifts: %v", err)
+		return
+	}
+
+	now := utils.Now()
+
+	for _, p := range plannedShifts {
+		if p.StartTime == "" {
+			continue
+		}
+
+		startTime, err := time.ParseInLocation("02/01/2006 15:04", p.Date+" "+p.StartTime, now.Location())
+		if err != nil {
+			continue
+		}
+
+		diff := startTime.Sub(now)
+		if diff.Minutes() <= 30 && diff.Minutes() > 0 {
+			user, err := db.Users().GetByPhone(p.AssignedTo)
+			if err == nil && user.Email != "" {
+				err := handlers.SendUpcomingShiftEmail(user.Email, p.Date, p.StartTime)
+				if err != nil {
+					log.Printf("checkAndSendUpcomingShiftReminders: Failed to send email to %s: %v", user.Email, err)
+				} else {
+					p.ReminderSent = true
+					_ = db.Shifts().Update(&p)
+					log.Printf("checkAndSendUpcomingShiftReminders: Sent upcoming shift reminder to %s for shift at %s %s", user.Email, p.Date, p.StartTime)
 				}
 			}
 		}
