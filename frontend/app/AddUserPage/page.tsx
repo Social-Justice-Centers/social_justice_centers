@@ -7,6 +7,21 @@ import { useRouter } from 'next/navigation';
 const BRAND_BLUE = '#0284C7';
 const BG_CREAM = '#FFFFFF';
 
+const formatDateInput = (value: string): string => {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  let formatted = '';
+  if (digits.length > 0) {
+    formatted += digits.slice(0, 2);
+  }
+  if (digits.length > 2) {
+    formatted += '/' + digits.slice(2, 4);
+  }
+  if (digits.length > 4) {
+    formatted += '/' + digits.slice(4, 8);
+  }
+  return formatted;
+};
+
 const CreateUserPage = () => {
   const router = useRouter();
   
@@ -26,7 +41,13 @@ const CreateUserPage = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
-    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
+    
+    let finalValue = value;
+    if (name === 'birthday') {
+      finalValue = formatDateInput(value);
+    }
+    
+    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : finalValue });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

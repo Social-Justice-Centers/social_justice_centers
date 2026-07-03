@@ -17,7 +17,7 @@ type User struct {
 	Username        string `json:"username"`                          // Display name (not unique)
 	Password        string `gorm:"not null"             json:"password"` // Allow binding for creation
 	Email           string `json:"email"`
-	Phone           string `gorm:"uniqueIndex;not null" json:"phone"` // Primary unique identifier
+	Phone           string `gorm:"uniqueIndex;size:100;not null" json:"phone"` // Primary unique identifier
 	Birthday        string `json:"birthday"`                          // Format: DD/MM/YYYY
 	Role            Role   `gorm:"type:text;not null"   json:"role"`
 	DirectManager   uint   `json:"directManager"`                     // DB ID of their manager User record

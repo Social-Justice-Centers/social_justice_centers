@@ -1,0 +1,95 @@
+Handlers Package Documentation
+==============================
+
+This package contains all the HTTP handlers and middleware for the application routes.
+Below is a map of each functionality and where it is located:
+
+1. Authentication & Session Handlers (handlers_auth.go)
+------------------------------------------------------
+- RequestOTPHandler: POST /otp/request
+  Sends a login code to the user's email.
+- VerifyOTPHandler: POST /otp/verify
+  Verifies the login code and initiates a session.
+- LogoutHandler: POST /logout
+  Clears the active user session.
+- MeHandler: GET /me
+  Returns details of the currently logged-in user.
+
+2. User & Employee Management Handlers (handlers_users.go)
+---------------------------------------------------------
+- CreateUserHandler: POST /users
+  Manager endpoint to register a new employee.
+- GetTeamHandler: GET /users/team
+  Manager endpoint to list all employees under their direct management.
+- UpdateEmployeeHandler: PUT /users/:id
+  Manager endpoint to edit details of a managed employee.
+- DeleteEmployeeHandler: DELETE /users/:id
+  Manager endpoint to remove an employee and close active history.
+
+3. Shift Handlers (handlers_shifts.go)
+-------------------------------------
+- GetMyShiftsHandler: GET /shifts
+  Employee endpoint to retrieve their assigned shifts.
+- GetCurrentShiftHandler: GET /shifts/current
+  Returns the active clocked-in shift (if any).
+- ClockInHandler: POST /shifts/clock-in
+  Starts a new active shift for the user.
+- ClockOutHandler: PUT /shifts/clock-out
+  Closes the active shift and saves work hours/notes.
+- ReportShiftHandler: POST /shifts/report
+  Manually reports details of a worked shift.
+- UpdateShiftHandler: PUT /shifts/:id
+  Edit date/time/notes of a shift (owner or manager). Reset status to pending if updated by employee.
+- DeleteShiftHandler: DELETE /shifts/:id
+  Deletes a shift (owner or manager).
+- Internal helpers:
+  - checkShiftApproval: Verifies if a reported shift matches planning criteria.
+  - consumePlannedShift: Deletes duplicate planned shifts on reported dates.
+  - parseTimeToMinutes: Parses "HH:MM" into integer minutes.
+  - validateShiftTimes: Enforces valid calendar dates and proper chronological order.
+
+4. Manager Shift Actions Handlers (handlers_manager_shifts.go)
+--------------------------------------------------------------
+- GetTeamShiftsHandler: GET /manager/team/shifts
+  Retrieves shifts for all employees directly managed.
+- AssignShiftHandler: POST /manager/team/shifts
+  Assigns a planned shift to a team member in the future.
+- ApproveManagerShiftHandler: PUT /manager/shifts/:id/approve
+  Manager endpoint to approve a shift report.
+- RejectManagerShiftHandler: PUT /manager/shifts/:id/reject
+  Manager endpoint to reject a shift report.
+
+5. Driving Report Handlers (handlers_driving.go)
+-----------------------------------------------
+- SubmitDrivingReportHandler: POST /driving-reports
+  Submits travel expenses and optionally uploads PDF documentation.
+- GetMyDrivingReportsHandler: GET /driving-reports
+  Employee retrieves their personal travel claims.
+- DownloadDrivingReportFileHandler: GET /driving-reports/:id/file
+  Download travel PDF attachments (employee owner or manager).
+- UpdateDrivingReportHandler: PUT /driving-reports/:id
+  Edit details of a travel report.
+- GetTeamDrivingReportsHandler: GET /manager/driving-reports
+  Manager fetches travel claims of all directly managed team members.
+- ApproveDrivingReportHandler: PUT /manager/driving-reports/:id/approve
+  Manager approves a travel expense report.
+
+6. Payroll Export Handler (handlers_export.go)
+---------------------------------------------
+- ExportMichpalHandler: GET /manager/export/michpal
+  Manager exports monthly team attendance and driving logs into SpreadsheetML XML.
+
+7. Middleware (middleware.go)
+-----------------------------
+- RequireAuth: Restricts endpoints to logged-in sessions.
+- RequireManager: Restricts endpoints to users with Manager role.
+
+8. Email & OTP Utilities (otp.go)
+---------------------------------
+- GenerateOTP: Creates a secure random 6-digit verification code.
+- StoreOTP: Hashes and stores code with 1-minute expiration.
+- VerifyAndConsumeOTP: Compares code inputs and removes verified tokens.
+- SendOTPEmail: Sends OTP via configured SMTP.
+- SendReminderEmail: Sends email alerts to employees who forgot to clock out.
+- SendRejectionEmail: Sends notification emails for rejected shifts.
+- SendUpcomingShiftEmail: Sends shift start reminders to employees.

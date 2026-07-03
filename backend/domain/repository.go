@@ -29,6 +29,7 @@ type ShiftStore interface {
 	GetAllActiveShifts() ([]models.Shift, error)
 	Update(shift *models.Shift) error
 	GetByID(id uint) (*models.Shift, error)
+	GetAllPlannedShifts() ([]models.Shift, error)
 }
 
 // DrivingReportStore defines all database operations for DrivingReports.
