@@ -32,4 +32,9 @@ type Employable interface {
 	// provides pre-aggregated rows and metadata; the Employable delegates
 	// to maker.MakeReport.
 	ExportShifts(maker *ReportMaker, rows []EmployeeReportRow, meta ReportMeta) ([]byte, error)
+
+	// SyncShiftToCalendar pushes a shift to an external calendar via the
+	// provided CalendarService adapter.  This decouples calendar vendor
+	// specifics from the domain model.
+	SyncShiftToCalendar(calendar CalendarService, shift ReportableShift) error
 }

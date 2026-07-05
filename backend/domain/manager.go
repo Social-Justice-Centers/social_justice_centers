@@ -51,6 +51,12 @@ func (m *Manager) ExportShifts(maker *ReportMaker, rows []EmployeeReportRow, met
 	return maker.MakeReport(rows, meta)
 }
 
+// SyncShiftToCalendar delegates calendar event creation to the provided
+// CalendarService adapter.
+func (m *Manager) SyncShiftToCalendar(calendar CalendarService, shift ReportableShift) error {
+	return calendar.AddShiftToCalendar(shift)
+}
+
 // GetSubordinates dynamically fetches all employees whose DirectManager
 // equals this manager's ID.  It relies on the existing relational mapping
 // rather than an in-memory slice, preserving the current data architecture.

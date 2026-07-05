@@ -42,6 +42,12 @@ func (e *Employee) ExportShifts(maker *ReportMaker, rows []EmployeeReportRow, me
 	return maker.MakeReport(rows, meta)
 }
 
+// SyncShiftToCalendar delegates calendar event creation to the provided
+// CalendarService adapter.
+func (e *Employee) SyncShiftToCalendar(calendar CalendarService, shift ReportableShift) error {
+	return calendar.AddShiftToCalendar(shift)
+}
+
 // ---------------------------------------------------------------------------
 // Saveable implementation
 // ---------------------------------------------------------------------------
