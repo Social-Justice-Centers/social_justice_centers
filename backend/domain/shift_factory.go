@@ -51,21 +51,28 @@ func (f *DefaultShiftFactory) CreateShift(shiftType string, data map[string]inte
 
 // createRegularShift extracts values from the data map into a RegularShift.
 func (f *DefaultShiftFactory) createRegularShift(data map[string]interface{}) *RegularShift {
-	return &RegularShift{
-		AssignedTo: stringFromMap(data, "assignedTo"),
-		AssignedBy: stringFromMap(data, "assignedBy"),
-		Date:       stringFromMap(data, "date"),
-		StartTime:  stringFromMap(data, "startTime"),
-		EndTime:    stringFromMap(data, "endTime"),
-		Notes:      stringFromMap(data, "notes"),
-		Type:       stringFromMap(data, "type"),
-		Status:     stringOrDefault(data, "status", "approved"),
+	shift := &RegularShift{
+		AssignedTo:   stringFromMap(data, "assignedTo"),
+		AssignedBy:   stringFromMap(data, "assignedBy"),
+		Date:         stringFromMap(data, "date"),
+		StartTime:    stringFromMap(data, "startTime"),
+		EndTime:      stringFromMap(data, "endTime"),
+		Notes:        stringFromMap(data, "notes"),
+		Type:         stringFromMap(data, "type"),
+		Status:       stringOrDefault(data, "status", "approved"),
+		ReminderSent: boolFromMap(data, "reminderSent"),
 	}
+	if idVal, ok := data["id"]; ok {
+		if idUint, ok := idVal.(uint); ok {
+			shift.ID = idUint
+		}
+	}
+	return shift
 }
 
 // createFlexibleShift extracts values from the data map into a FlexibleShift.
 func (f *DefaultShiftFactory) createFlexibleShift(data map[string]interface{}) *FlexibleShift {
-	return &FlexibleShift{
+	shift := &FlexibleShift{
 		AssignedTo:   stringFromMap(data, "assignedTo"),
 		AssignedBy:   stringFromMap(data, "assignedBy"),
 		Date:         stringFromMap(data, "date"),
@@ -75,7 +82,14 @@ func (f *DefaultShiftFactory) createFlexibleShift(data map[string]interface{}) *
 		Notes:        stringFromMap(data, "notes"),
 		Type:         stringFromMap(data, "type"),
 		Status:       stringOrDefault(data, "status", "approved"),
+		ReminderSent: boolFromMap(data, "reminderSent"),
 	}
+	if idVal, ok := data["id"]; ok {
+		if idUint, ok := idVal.(uint); ok {
+			shift.ID = idUint
+		}
+	}
+	return shift
 }
 
 // ---------------------------------------------------------------------------
@@ -101,4 +115,14 @@ func stringOrDefault(m map[string]interface{}, key, fallback string) string {
 		return fallback
 	}
 	return s
+}
+
+// boolFromMap safely extracts a boolean from the data map.
+func boolFromMap(data map[string]interface{}, key string) bool {
+	if val, ok := data[key]; ok {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return false
 }

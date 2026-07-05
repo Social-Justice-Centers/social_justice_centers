@@ -11,6 +11,7 @@ import "fmt"
 type Employee struct {
 	ID              uint   // Database primary key (matches models.User.ID).
 	FullName        string // Display name.
+	Username        string // Display name (not unique).
 	Phone           string // Unique login identifier.
 	Email           string
 	Birthday        string // DD/MM/YYYY.

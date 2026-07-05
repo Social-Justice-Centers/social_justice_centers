@@ -37,7 +37,11 @@ func (s *FlexibleShift) AssignedByPhone() string  { return s.AssignedBy }
 func (s *FlexibleShift) StartTimeValue() string   { return s.StartTime }
 func (s *FlexibleShift) EndTimeValue() string     { return s.EndTime }
 func (s *FlexibleShift) ShiftStatus() string      { return s.Status }
+func (s *FlexibleShift) SetStatus(status string)  { s.Status = status }
 func (s *FlexibleShift) GetNotes() string         { return s.Notes }
+func (s *FlexibleShift) GetID() uint              { return s.ID }
+func (s *FlexibleShift) GetWorkDuration() string  { return s.WorkDuration }
+func (s *FlexibleShift) GetReminderSent() bool    { return s.ReminderSent }
 
 // CalculateDuration computes the elapsed work time.  If a persisted
 // WorkDuration is available it is preferred; otherwise the duration is
@@ -47,6 +51,15 @@ func (s *FlexibleShift) CalculateDuration() time.Duration {
 	if s.WorkDuration != "" {
 		if d, err := time.ParseDuration(s.WorkDuration); err == nil {
 			return d
+		}
+		// Handle legacy string duration models
+		switch s.WorkDuration {
+		case "full", "one day":
+			return 8 * time.Hour
+		case "half", "half day":
+			return 4 * time.Hour
+		case "sick", "sick day":
+			return 8 * time.Hour
 		}
 	}
 

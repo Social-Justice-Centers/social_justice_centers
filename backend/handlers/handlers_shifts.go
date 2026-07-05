@@ -23,7 +23,12 @@ func GetMyShiftsHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת המשמרות"})
 			return
 		}
-		c.JSON(http.StatusOK, shifts)
+		var dtos []ShiftDTO
+		for _, s := range shifts {
+			domainShift := ModelShiftToDomain(db, s)
+			dtos = append(dtos, ReportableShiftToDTO(domainShift))
+		}
+		c.JSON(http.StatusOK, dtos)
 	}
 }
 
@@ -36,7 +41,8 @@ func GetCurrentShiftHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "אין משמרת פעילה"})
 			return
 		}
-		c.JSON(http.StatusOK, activeShift)
+		domainShift := ModelShiftToDomain(db, *activeShift)
+		c.JSON(http.StatusOK, ReportableShiftToDTO(domainShift))
 	}
 }
 
@@ -63,11 +69,18 @@ func ClockInHandler(db domain.Registry) gin.HandlerFunc {
 			Status:     checkShiftApproval(db, phone, now.Format("02/01/2006"), now.Format("15:04"), "", "", false),
 		}
 
+		if err := ValidateDomainShift(db, shift); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		if err := db.Shifts().Create(&shift); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בכנסה למשמרת"})
 			return
 		}
-		c.JSON(http.StatusCreated, shift)
+
+		SyncDomainShift(db, shift)
+		c.JSON(http.StatusCreated, ReportableShiftToDTO(ModelShiftToDomain(db, shift)))
 	}
 }
 
@@ -96,13 +109,14 @@ func ClockOutHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(activeShift.Date, activeShift.StartTime, req.EndTime, activeShift.WorkDuration); err != nil {
+		activeShift.EndTime = req.EndTime
+		activeShift.Notes = req.Notes
+
+		if err := ValidateDomainShift(db, *activeShift); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		activeShift.EndTime = req.EndTime
-		activeShift.Notes = req.Notes
 		activeShift.Status = checkShiftApproval(db, phone, activeShift.Date, activeShift.StartTime, req.EndTime, req.Notes, false)
 
 		if err := db.Shifts().Update(activeShift); err != nil {
@@ -110,9 +124,13 @@ func ClockOutHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		SyncDomainShift(db, *activeShift)
 		consumePlannedShift(db, phone, activeShift.Date)
 
-		c.JSON(http.StatusOK, gin.H{"message": "יציאה ממשמרת עודכנה בהצלחה"})
+		c.JSON(http.StatusOK, gin.H{
+			"message": "יציאה ממשמרת עודכנה בהצלחה",
+			"shift":   ReportableShiftToDTO(ModelShiftToDomain(db, *activeShift)),
+		})
 	}
 }
 
@@ -125,16 +143,16 @@ func ReportShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, req.WorkDuration); err != nil {
+		phone := c.GetString("phone")
+		req.AssignedTo = phone
+		req.AssignedBy = phone
+		req.Type = "reported"
+
+		if err := ValidateDomainShift(db, req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		phone := c.GetString("phone")
-
-		req.AssignedTo = phone
-		req.AssignedBy = phone
-		req.Type = "reported"
 		req.Status = checkShiftApproval(db, phone, req.Date, req.StartTime, req.EndTime, req.Notes, true)
 
 		if err := db.Shifts().Create(&req); err != nil {
@@ -142,9 +160,13 @@ func ReportShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		SyncDomainShift(db, req)
 		consumePlannedShift(db, phone, req.Date)
 
-		c.JSON(http.StatusCreated, gin.H{"message": "דיווח המשמרת נשמר בהצלחה"})
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "דיווח המשמרת נשמר בהצלחה",
+			"shift":   ReportableShiftToDTO(ModelShiftToDomain(db, req)),
+		})
 	}
 }
 
@@ -188,15 +210,15 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, shift.WorkDuration); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
 		shift.Date = req.Date
 		shift.StartTime = req.StartTime
 		shift.EndTime = req.EndTime
 		shift.Notes = req.Notes
+
+		if err := ValidateDomainShift(db, *shift); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
 		if !isManager {
 			shift.Status = "pending"
@@ -207,7 +229,12 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "משמרת עודכנה בהצלחה"})
+		SyncDomainShift(db, *shift)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "משמרת עודכנה בהצלחה",
+			"shift":   ReportableShiftToDTO(ModelShiftToDomain(db, *shift)),
+		})
 	}
 }
 

@@ -40,10 +40,22 @@ type ReportableShift interface {
 	// returns an error describing any violation.  Returns nil when valid.
 	Validate() error
 
+	// SetStatus updates the approval status of the shift.
+	SetStatus(status string)
+
 	// ShiftStatus returns the approval status of the shift
 	// (e.g. "approved", "pending").
 	ShiftStatus() string
 
 	// GetNotes returns any free-text notes attached to the shift.
 	GetNotes() string
+
+	// GetID returns the database identifier for the shift.
+	GetID() uint
+
+	// GetWorkDuration returns the raw persisted work duration string.
+	GetWorkDuration() string
+
+	// GetReminderSent returns whether a reminder has been sent for this shift.
+	GetReminderSent() bool
 }

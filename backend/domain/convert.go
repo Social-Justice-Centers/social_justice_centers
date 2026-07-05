@@ -13,6 +13,7 @@ func userToEmployable(u *models.User) Employable {
 		return &Manager{
 			ID:              u.ID,
 			FullName:        u.FullName,
+			Username:        u.Username,
 			Phone:           u.Phone,
 			Email:           u.Email,
 			Birthday:        u.Birthday,
@@ -24,6 +25,7 @@ func userToEmployable(u *models.User) Employable {
 		return &Employee{
 			ID:              u.ID,
 			FullName:        u.FullName,
+			Username:        u.Username,
 			Phone:           u.Phone,
 			Email:           u.Email,
 			Birthday:        u.Birthday,

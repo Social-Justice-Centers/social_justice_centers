@@ -35,7 +35,11 @@ func (s *RegularShift) AssignedByPhone() string  { return s.AssignedBy }
 func (s *RegularShift) StartTimeValue() string   { return s.StartTime }
 func (s *RegularShift) EndTimeValue() string     { return s.EndTime }
 func (s *RegularShift) ShiftStatus() string      { return s.Status }
+func (s *RegularShift) SetStatus(status string)  { s.Status = status }
 func (s *RegularShift) GetNotes() string         { return s.Notes }
+func (s *RegularShift) GetID() uint              { return s.ID }
+func (s *RegularShift) GetWorkDuration() string  { return "" } // RegularShift does not persist WorkDuration string
+func (s *RegularShift) GetReminderSent() bool    { return s.ReminderSent }
 
 // CalculateDuration computes the elapsed work time between StartTime and
 // EndTime using the HH:MM format.  Returns zero if the shift has not ended

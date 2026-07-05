@@ -20,6 +20,7 @@ import "fmt"
 type Manager struct {
 	ID              uint   // Database primary key (matches models.User.ID).
 	FullName        string // Display name.
+	Username        string // Display name (not unique).
 	Phone           string // Unique login identifier.
 	Email           string
 	Birthday        string // DD/MM/YYYY.
@@ -55,6 +56,17 @@ func (m *Manager) ExportShifts(maker *ReportMaker, rows []EmployeeReportRow, met
 // CalendarService adapter.
 func (m *Manager) SyncShiftToCalendar(calendar CalendarService, shift ReportableShift) error {
 	return calendar.AddShiftToCalendar(shift)
+}
+
+// ApproveShift encapsulates the business logic of updating a shift's status.
+// It sets the shift to "approved" if isApproved is true, or "rejected" otherwise.
+func (m *Manager) ApproveShift(shift ReportableShift, isApproved bool) error {
+	if isApproved {
+		shift.SetStatus("approved")
+	} else {
+		shift.SetStatus("rejected")
+	}
+	return nil
 }
 
 // GetSubordinates dynamically fetches all employees whose DirectManager
