@@ -37,6 +37,11 @@ func (e *Employee) ReportOnShift(_ ReportableShift) error {
 	return nil
 }
 
+// ExportShifts delegates report generation to the provided ReportMaker strategy.
+func (e *Employee) ExportShifts(maker *ReportMaker, rows []EmployeeReportRow, meta ReportMeta) ([]byte, error) {
+	return maker.MakeReport(rows, meta)
+}
+
 // ---------------------------------------------------------------------------
 // Saveable implementation
 // ---------------------------------------------------------------------------

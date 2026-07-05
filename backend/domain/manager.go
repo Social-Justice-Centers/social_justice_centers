@@ -46,6 +46,11 @@ func (m *Manager) ReportOnShift(_ ReportableShift) error {
 	return nil
 }
 
+// ExportShifts delegates report generation to the provided ReportMaker strategy.
+func (m *Manager) ExportShifts(maker *ReportMaker, rows []EmployeeReportRow, meta ReportMeta) ([]byte, error) {
+	return maker.MakeReport(rows, meta)
+}
+
 // GetSubordinates dynamically fetches all employees whose DirectManager
 // equals this manager's ID.  It relies on the existing relational mapping
 // rather than an in-memory slice, preserving the current data architecture.

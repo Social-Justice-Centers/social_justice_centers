@@ -26,4 +26,10 @@ type Employable interface {
 	// manager.  For a top-level manager who manages themselves, this equals
 	// their own ID.
 	GetDirectManagerID() uint
+
+	// ExportShifts produces an exported report for the given shift data,
+	// using the Strategy held by the provided ReportMaker.  The caller
+	// provides pre-aggregated rows and metadata; the Employable delegates
+	// to maker.MakeReport.
+	ExportShifts(maker *ReportMaker, rows []EmployeeReportRow, meta ReportMeta) ([]byte, error)
 }
