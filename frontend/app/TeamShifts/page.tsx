@@ -75,6 +75,12 @@ const TeamShiftsPage = () => {
     // Filter by employee name
     const [filter, setFilter] = useState('');
 
+    // Sorting and Date Range states
+    const [sortBy, setSortBy] = useState<'date' | 'date_asc' | 'employee'>('date');
+    const [dateRangeType, setDateRangeType] = useState<'past_week' | 'past_month' | 'all' | 'custom'>('past_week');
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
+
     // Assign state
     const [showAssignModal, setShowAssignModal] = useState(false);
     const [assignForm, setAssignForm] = useState({ assignedTo: '', date: '', startTime: '', endTime: '', notes: '' });
@@ -279,6 +285,11 @@ const TeamShiftsPage = () => {
 
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
 
+    const parseShiftDate = (dateStr: string): Date => {
+        const [day, month, year] = dateStr.split('/').map(Number);
+        return new Date(year, month - 1, day);
+    };
+
     const displayed = shifts.filter(s => {
         const isPast = isShiftPast(s.date, s.endTime || s.startTime);
         const matchesTab = 
@@ -288,7 +299,79 @@ const TeamShiftsPage = () => {
                 ? s.status === 'rejected'
                 : (s.type !== 'planned' || isPast) && s.status !== 'rejected';
         const matchesFilter = !filter || (s.employeeName || '').toLowerCase().includes(filter.toLowerCase());
-        return matchesTab && matchesFilter;
+        
+        let matchesDate = true;
+        if (dateRangeType !== 'all') {
+            const sDate = parseShiftDate(s.date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (activeTab === 'planned') {
+                if (dateRangeType === 'past_week') {
+                    const nextWeek = new Date();
+                    nextWeek.setDate(nextWeek.getDate() + 7);
+                    nextWeek.setHours(23, 59, 59, 999);
+                    matchesDate = sDate >= today && sDate <= nextWeek;
+                } else if (dateRangeType === 'past_month') {
+                    const nextMonth = new Date();
+                    nextMonth.setMonth(nextMonth.getMonth() + 1);
+                    nextMonth.setHours(23, 59, 59, 999);
+                    matchesDate = sDate >= today && sDate <= nextMonth;
+                } else if (dateRangeType === 'custom') {
+                    if (customStartDate) {
+                        const cStart = new Date(customStartDate);
+                        cStart.setHours(0, 0, 0, 0);
+                        matchesDate = matchesDate && sDate >= cStart;
+                    }
+                    if (customEndDate) {
+                        const cEnd = new Date(customEndDate);
+                        cEnd.setHours(23, 59, 59, 999);
+                        matchesDate = matchesDate && sDate <= cEnd;
+                    }
+                }
+            } else {
+                if (dateRangeType === 'past_week') {
+                    const pastWeek = new Date();
+                    pastWeek.setDate(pastWeek.getDate() - 7);
+                    pastWeek.setHours(0, 0, 0, 0);
+                    matchesDate = sDate >= pastWeek && sDate <= new Date();
+                } else if (dateRangeType === 'past_month') {
+                    const pastMonth = new Date();
+                    pastMonth.setMonth(pastMonth.getMonth() - 1);
+                    pastMonth.setHours(0, 0, 0, 0);
+                    matchesDate = sDate >= pastMonth && sDate <= new Date();
+                } else if (dateRangeType === 'custom') {
+                    if (customStartDate) {
+                        const cStart = new Date(customStartDate);
+                        cStart.setHours(0, 0, 0, 0);
+                        matchesDate = matchesDate && sDate >= cStart;
+                    }
+                    if (customEndDate) {
+                        const cEnd = new Date(customEndDate);
+                        cEnd.setHours(23, 59, 59, 999);
+                        matchesDate = matchesDate && sDate <= cEnd;
+                    }
+                }
+            }
+        }
+
+        return matchesTab && matchesFilter && matchesDate;
+    });
+
+    displayed.sort((a, b) => {
+        const dateA = parseShiftDate(a.date).getTime();
+        const dateB = parseShiftDate(b.date).getTime();
+        const nameA = (a.employeeName || '').toLowerCase();
+        const nameB = (b.employeeName || '').toLowerCase();
+        
+        if (sortBy === 'date') {
+            return dateB - dateA;
+        } else if (sortBy === 'date_asc') {
+            return dateA - dateB;
+        } else if (sortBy === 'employee') {
+            return nameA.localeCompare(nameB);
+        }
+        return 0;
     });
 
     if (loading) return (
@@ -320,7 +403,7 @@ const TeamShiftsPage = () => {
                 </p>
 
                 {/* Filter & Assign Action */}
-                <div className="mb-4 flex flex-col sm:flex-row gap-3">
+                <div className="mb-4 flex gap-3">
                     <button
                         onClick={() => setShowAssignModal(true)}
                         className="h-11 px-4 flex items-center justify-center gap-2 rounded-xl text-white font-bold shadow-md transition hover:opacity-90 whitespace-nowrap"
@@ -329,14 +412,79 @@ const TeamShiftsPage = () => {
                         <Plus size={20} />
                         שיבוץ משמרת
                     </button>
-                    <input
-                        type="text"
-                        placeholder="סינון לפי שם עובד..."
-                        className="flex-1 h-11 px-4 rounded-xl border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7]"
-                        style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
-                        value={filter}
-                        onChange={e => setFilter(e.target.value)}
-                    />
+                </div>
+
+                {/* Filter & Sort Controls */}
+                <div className="mb-6 bg-white p-4 rounded-2xl shadow-sm border-2 flex flex-col gap-4" style={{ borderColor: INPUT_BG }}>
+                    <div className="flex flex-col md:flex-row gap-3">
+                        <div className="flex-1">
+                            <label className="block text-xs font-semibold mb-1 text-[#0284C7]">סינון לפי עובד</label>
+                            <input
+                                type="text"
+                                placeholder="שם עובד..."
+                                className="w-full h-10 px-3 rounded-lg border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] text-sm"
+                                style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                value={filter}
+                                onChange={e => setFilter(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-xs font-semibold mb-1 text-[#0284C7]">מיון לפי</label>
+                            <select
+                                className="w-full h-10 px-3 rounded-lg border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] text-sm"
+                                style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                value={sortBy}
+                                onChange={e => setSortBy(e.target.value as 'date' | 'date_asc' | 'employee')}
+                            >
+                                <option value="date">תאריך (מהחדש לישן)</option>
+                                <option value="date_asc">תאריך (מהישן לחדש)</option>
+                                <option value="employee">שם עובד</option>
+                            </select>
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-xs font-semibold mb-1 text-[#0284C7]">טווח תאריכים</label>
+                            <select
+                                className="w-full h-10 px-3 rounded-lg border-2 text-right outline-none focus:ring-2 focus:ring-[#0284C7] text-sm"
+                                style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                value={dateRangeType}
+                                onChange={e => setDateRangeType(e.target.value as 'past_week' | 'past_month' | 'all' | 'custom')}
+                            >
+                                <option value="past_week">
+                                    {activeTab === 'planned' ? 'השבוע הקרוב (ברירת מחדל)' : 'השבוע האחרון (ברירת מחדל)'}
+                                </option>
+                                <option value="past_month">
+                                    {activeTab === 'planned' ? 'החודש הקרוב' : 'החודש האחרון'}
+                                </option>
+                                <option value="all">כל התאריכים</option>
+                                <option value="custom">טווח מותאם אישית</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {dateRangeType === 'custom' && (
+                        <div className="flex gap-3 justify-end items-center border-t pt-3" style={{ borderColor: INPUT_BG }}>
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold text-[#0284C7]">מ-:</label>
+                                <input
+                                    type="date"
+                                    className="h-10 px-3 rounded-lg border-2 outline-none focus:ring-2 focus:ring-[#0284C7] text-sm text-right"
+                                    style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                    value={customStartDate}
+                                    onChange={e => setCustomStartDate(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label className="text-xs font-semibold text-[#0284C7]">עד:</label>
+                                <input
+                                    type="date"
+                                    className="h-10 px-3 rounded-lg border-2 outline-none focus:ring-2 focus:ring-[#0284C7] text-sm text-right"
+                                    style={{ borderColor: INPUT_BG, color: BRAND_BLUE }}
+                                    value={customEndDate}
+                                    onChange={e => setCustomEndDate(e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {error && (
@@ -468,9 +616,9 @@ const TeamShiftsPage = () => {
                                             <div className="flex justify-between items-center">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-bold text-lg" style={{ color: BRAND_BLUE }}>{shift.date}</span>
-                                                    {shift.status === 'pending' && (
-                                                        <span className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded-full">
-                                                            לא הוקצתה - דורש אישור
+                                                    {shift.status === 'pending' && shift.type === 'reported' && (
+                                                        <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-1 rounded-full">
+                                                            ממתין לאישור
                                                         </span>
                                                     )}
                                                     {shift.status === 'rejected' && (
