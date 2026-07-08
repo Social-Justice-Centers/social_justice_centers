@@ -210,6 +210,16 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		if !isManager && shift.Type == "planned" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "עובדים אינם רשאים לערוך משמרות מתוכננות"})
+			return
+		}
+
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, ""); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		shift.Date = req.Date
 		shift.StartTime = req.StartTime
 		shift.EndTime = req.EndTime

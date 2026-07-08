@@ -371,14 +371,16 @@ const ReportedShiftsPage = () => {
                                                                 <CalendarPlus size={14} />
                                                                 ליומן
                                                             </button>
-                                                            <button
-                                                                onClick={() => startEdit(shift)}
-                                                                className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-gray-50"
-                                                                style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
-                                                            >
-                                                                <Pencil size={14} />
-                                                                עריכה
-                                                            </button>
+                                                            {shift.type !== 'planned' && (
+                                                                <button
+                                                                    onClick={() => startEdit(shift)}
+                                                                    className="flex items-center gap-1 text-sm font-bold px-3 py-1.5 rounded-lg border-2 transition hover:bg-gray-50"
+                                                                    style={{ borderColor: BRAND_BLUE, color: BRAND_BLUE }}
+                                                                >
+                                                                    <Pencil size={14} />
+                                                                    עריכה
+                                                                </button>
+                                                            )}
                                                         </>
                                                     )}
                                                 </div>
