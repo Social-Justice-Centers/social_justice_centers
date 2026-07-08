@@ -24,6 +24,17 @@ const formatDateInput = (value: string): string => {
     return formatted;
 };
 
+const isShiftPast = (dateStr: string, timeStr: string): boolean => {
+    try {
+        const [day, month, year] = dateStr.split('/').map(Number);
+        const [hours, minutes] = (timeStr || '23:59').split(':').map(Number);
+        const shiftDate = new Date(year, month - 1, day, hours, minutes);
+        return shiftDate < new Date();
+    } catch {
+        return false;
+    }
+};
+
 interface Shift {
     ID: number;
     assignedTo: string;
@@ -154,13 +165,14 @@ const ReportedShiftsPage = () => {
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
 
     const displayedShifts = shifts.filter(s => {
+        const isPast = isShiftPast(s.date, s.endTime || s.startTime);
         if (activeTab === 'rejected') {
             return s.status === 'rejected';
         }
         if (activeTab === 'planned') {
-            return s.type === 'planned' && s.status !== 'rejected';
+            return s.type === 'planned' && s.status !== 'rejected' && !isPast;
         }
-        return s.type !== 'planned' && s.status !== 'rejected';
+        return (s.type !== 'planned' || isPast) && s.status !== 'rejected';
     });
 
     if (loading) return (
@@ -338,6 +350,11 @@ const ReportedShiftsPage = () => {
                                                                 : 'bg-amber-100 text-amber-700'
                                                         }`}>
                                                             {shift.status === 'approved' ? 'מאושר' : shift.status === 'rejected' ? 'נדחה' : 'ממתין לאישור'}
+                                                        </span>
+                                                    )}
+                                                    {shift.type === 'planned' && isShiftPast(shift.date, shift.endTime || shift.startTime) && (
+                                                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
+                                                            לא דווחה
                                                         </span>
                                                     )}
                                                 </div>

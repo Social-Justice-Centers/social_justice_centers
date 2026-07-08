@@ -29,6 +29,17 @@ const formatDateInput = (value: string): string => {
     return formatted;
 };
 
+const isShiftPast = (dateStr: string, timeStr: string): boolean => {
+    try {
+        const [day, month, year] = dateStr.split('/').map(Number);
+        const [hours, minutes] = (timeStr || '23:59').split(':').map(Number);
+        const shiftDate = new Date(year, month - 1, day, hours, minutes);
+        return shiftDate < new Date();
+    } catch {
+        return false;
+    }
+};
+
 interface TeamShift {
     ID: number;
     assignedTo: string;
@@ -261,12 +272,13 @@ const TeamShiftsPage = () => {
     const inputClass = "w-full h-10 px-3 rounded-lg text-right font-semibold outline-none focus:ring-2 focus:ring-[#0284C7] text-sm";
 
     const displayed = shifts.filter(s => {
+        const isPast = isShiftPast(s.date, s.endTime || s.startTime);
         const matchesTab = 
             activeTab === 'planned' 
-                ? s.type === 'planned' && s.status !== 'rejected'
+                ? s.type === 'planned' && s.status !== 'rejected' && !isPast
                 : activeTab === 'rejected'
                 ? s.status === 'rejected'
-                : s.type !== 'planned' && s.status !== 'rejected';
+                : (s.type !== 'planned' || isPast) && s.status !== 'rejected';
         const matchesFilter = !filter || (s.employeeName || '').toLowerCase().includes(filter.toLowerCase());
         return matchesTab && matchesFilter;
     });
@@ -369,6 +381,11 @@ const TeamShiftsPage = () => {
                                         }`}>
                                             {shift.type === 'reported' ? 'דיווח עצמי' : 'מתוכנן'}
                                         </span>
+                                        {shift.type === 'planned' && isShiftPast(shift.date, shift.endTime || shift.startTime) && (
+                                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
+                                                לא דווחה
+                                            </span>
+                                        )}
                                     </div>
 
                                     {editingId === shift.ID ? (
