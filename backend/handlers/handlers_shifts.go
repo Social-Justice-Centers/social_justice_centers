@@ -240,6 +240,7 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 
 // DeleteShiftHandler — delete a shift (owner or manager)
 func DeleteShiftHandler(db domain.Registry) gin.HandlerFunc {
+	// Only the shift owner (employee assigned to it) or a manager is authorized to delete shifts.
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 		if err != nil {
@@ -260,10 +261,10 @@ func DeleteShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		isOwner := shift.AssignedTo == phone
 		isManager := user.Role == models.RoleManager
-		if !isOwner && !isManager {
-			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה למחוק משמרת זו"})
+		isCreator := shift.AssignedBy == phone
+		if !isManager || !isCreator {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה למחוק משמרת זו (רק מנהל ששיבץ את המשמרת רשאי למחוק אותה)"})
 			return
 		}
 
