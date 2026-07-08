@@ -642,7 +642,7 @@ const TeamShiftsPage = () => {
                                                 </div>
                                             )}
                                             <div className="flex justify-end gap-2">
-                                                {shift.status === 'pending' ? (
+                                                {shift.status === 'pending' && shift.type === 'reported' ? (
                                                     <>
                                                         <button
                                                             onClick={() => approveShift(shift.ID)}
