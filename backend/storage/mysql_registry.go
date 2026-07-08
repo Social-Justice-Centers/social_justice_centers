@@ -127,22 +127,11 @@ func (s *shiftStore) GetByAssignedTo(phone string) ([]models.Shift, error) {
 func (s *shiftStore) GetByAssignedToInDateRange(phone, startDate, endDate string) ([]models.Shift, error) {
 	var shifts []models.Shift
 
-	// Convert DD/MM/YYYY to YYYY-MM-DD for text comparison.
-	toISO := func(ddmmyyyy string) string {
-		if len(ddmmyyyy) != 10 {
-			return ddmmyyyy
-		}
-		return ddmmyyyy[6:10] + "-" + ddmmyyyy[3:5] + "-" + ddmmyyyy[0:2]
-	}
-
-	isoStart := toISO(startDate)
-
 	query := s.db.Where("assigned_to = ?", phone).
-		Where("substr(date,7,4)||'-'||substr(date,4,2)||'-'||substr(date,1,2) >= ?", isoStart)
+		Where("STR_TO_DATE(date, '%d/%m/%Y') >= STR_TO_DATE(?, '%d/%m/%Y')", startDate)
 
 	if endDate != "" {
-		isoEnd := toISO(endDate)
-		query = query.Where("substr(date,7,4)||'-'||substr(date,4,2)||'-'||substr(date,1,2) <= ?", isoEnd)
+		query = query.Where("STR_TO_DATE(date, '%d/%m/%Y') <= STR_TO_DATE(?, '%d/%m/%Y')", endDate)
 	}
 
 	err := query.Find(&shifts).Error
