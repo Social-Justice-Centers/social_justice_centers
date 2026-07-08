@@ -140,6 +140,14 @@ const TeamShiftsPage = () => {
             setAssignError('נא למלא עובד, תאריך ושעת התחלה');
             return;
         }
+        if (assignForm.startTime && assignForm.endTime) {
+            const [sh, sm] = assignForm.startTime.split(':').map(Number);
+            const [eh, em] = assignForm.endTime.split(':').map(Number);
+            if (eh < sh || (eh === sh && em <= sm)) {
+                setAssignError('שעת סיום חייבת להיות אחרי שעת התחלה');
+                return;
+            }
+        }
         setAssigning(true);
         setAssignError('');
         try {

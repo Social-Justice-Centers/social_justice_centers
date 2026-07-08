@@ -118,6 +118,11 @@ func AssignShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, req.WorkDuration); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		// Verify shift start time is in the future
 		now := utils.Now()
 		shiftStart, _ := time.ParseInLocation("02/01/2006 15:04", req.Date+" "+req.StartTime, now.Location())
