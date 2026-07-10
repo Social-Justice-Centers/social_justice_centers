@@ -7,20 +7,20 @@ The Social Justice Centers movement employs staff across multiple locations. Cur
 
 ### Key Objectives
 - **Unification:** Combine entry/exit time recording and job role logging into one streamlined app.
-- **Management:** Provide managers with tools to approve shifts, manage locations, and export data for salary/reward calculations.
+- **Management:** Provide managers with tools to approve shifts, and export data for salary/reward calculations.
 ---
 
 ## ✨ Features
 
 ### For Employees
-- **Unified Login:** Simple authentication via phone number and password.
+- **Unified Login:** Simple authentication via phone number.
 - **Shift Tracking:** Easy Clock-in/Clock-out interface.
-- **Role Reporting:** Mandatory selection of specific job roles and details during the shift.
-- **Accessibility:** User interface optimized for ease of use and accessibility.
+- **Expense Claims:** Upload travel expense documents.
 
 ### For Managers
-- **Dashboard:** Manage multiple store locations and user roles.
+- **Shift Scheduling:** Assign shifts to employees with Google Calendar integration.
 - **Shift Verification:** Review, approve, or reject submitted shifts.
+- **Expense Verification:** Review, approve, or reject submitted travel expenses.
 - **Reports:** Export detailed reports for monthly salary and reward calculations.
 - **User Management:** Add employees and assign permissions.
 
@@ -40,8 +40,9 @@ This project is built using a modern, scalable architecture designed for high pe
 - *Chosen for server-side rendering capabilities, performance, and modern mobile-first UI development.*
 
 ### Database
-- **Database:** PostgreSQL
+- **Database:** MySQL
 - *Chosen for ACID compliance and strong SQL capabilities to ensure data integrity for financial/reward calculations.*
+- *Designed to allow easily swapping the database type if required.*
 
 ### Infrastructure & DevOps
 - **Containerization:** Docker & Docker Compose
@@ -54,21 +55,28 @@ This project is built using a modern, scalable architecture designed for high pe
 The system follows a microservices-oriented approach:
 - **Application (Client):** Next.js frontend interacting with the API.
 - **API Server:** Go/Gin server handling business logic, authentication, and shift management.
-- **Database:** PostgreSQL instance storing sensitive user data, shifts, and roles.
+- **Database:** MySQL instance storing sensitive user data, shifts, and roles.
 
 ---
 
 ## 🚀 Getting Started
 
-Getting the project up and running locally is simple. You don't need to install Node.js, Go, or any other dependencies on your host machine other than **Docker** and **Make**.
+Getting the project up and running locally is simple. You don't need to install Node.js, Go, or any other dependencies on your host machine other than **Docker**, **Make** and **Git**.
 
-1. **Clone the repository:**
+1. **Install Prerequisites (if needed):**
+   For Ubuntu-based systems, run:
+   ```bash
+   sudo apt update
+   sudo apt install -y git make docker.io
+   ```
+   
+2. **Clone the repository:**
    ```bash
    git clone <repository-url>
    cd social_justice_centers
    ```
 
-2. **Start the application:**
+3. **Start the application:**
    ```bash
    make run
    ```
@@ -96,3 +104,4 @@ This project was designed and developed by:
 - Dor Chobotaro
 
 **Instructor:**
+- Diana Cohen
