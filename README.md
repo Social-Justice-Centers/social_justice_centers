@@ -59,6 +59,19 @@ The system follows a microservices-oriented approach:
 
 ---
 
+## 💻 Minimal System Requirements
+
+To run the application and database containers smoothly, ensure your host environment meets the following specifications:
+
+- **OS:** Linux (Ubuntu/Debian recommended) or Windows with WSL2
+- **CPU:** 1 vCPU (Core)
+- **RAM:** 2 GB
+- **Storage:** 10 GB of available disk space (Note: Storage requirements will grow as database records and logs accumulate)
+
+*For a full list of software dependencies, please refer to [SOFTWARE_REQUIREMENTS.md](SOFTWARE_REQUIREMENTS.md).*
+
+---
+
 ## 🚀 Getting Started
 
 Getting the project up and running locally is simple. You don't need to install Node.js, Go, or any other dependencies on your host machine other than **Docker**, **Make** and **Git**.
