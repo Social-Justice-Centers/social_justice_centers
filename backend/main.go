@@ -9,10 +9,11 @@ import (
 
 func main() {
 	db := Initialization.InitDB()
-	registry := storage.NewSQLiteRegistry(db)
-	
+	dbAdapter := storage.NewMySQLRegistry(db)
+	registry := dbAdapter.Registry()
+
 	Initialization.StartCronJobs(registry)
-	
+
 	r := Initialization.SetupRouter(registry)
 
 	log.Println("Server is running on port 8080...")

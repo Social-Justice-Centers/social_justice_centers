@@ -63,7 +63,11 @@ func CreateUserHandler(db domain.Registry) gin.HandlerFunc {
 			log.Printf("ERROR: Failed to create employee manager history record: %v\n", err)
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"message": "משתמש נוצר בהצלחה"})
+		dto := EmployableToDTO(domain.UserToEmployable(&req))
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "משתמש נוצר בהצלחה",
+			"user":    dto,
+		})
 	}
 }
 
@@ -81,10 +85,16 @@ func GetTeamHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת רשימת העובדים"})
 			return
 		}
-		for i := range users {
-			users[i].Password = ""
+
+		// Phase 1 Migration: Convert to Domain models, then to DTOs
+		var teamDTOs []UserDTO
+		for _, u := range users {
+			emp := domain.UserToEmployable(&u)
+			dto := EmployableToDTO(emp)
+			teamDTOs = append(teamDTOs, dto)
 		}
-		c.JSON(http.StatusOK, users)
+
+		c.JSON(http.StatusOK, teamDTOs)
 	}
 }
 
@@ -148,7 +158,11 @@ func UpdateEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "פרטי העובד עודכנו בהצלחה"})
+		dto := EmployableToDTO(domain.UserToEmployable(targetUser))
+		c.JSON(http.StatusOK, gin.H{
+			"message": "פרטי העובד עודכנו בהצלחה",
+			"user":    dto,
+		})
 	}
 }
 
