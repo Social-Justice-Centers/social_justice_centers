@@ -5,36 +5,17 @@ import (
 	"log"
 )
 
-// GoogleCalendarAdapter is a concrete Adapter that implements CalendarService
-// by translating domain shift operations into Google Calendar API calls.
-//
-// CURRENT STATUS — STUB:
-// No Google Calendar API client exists in this codebase yet.  This adapter
-// provides the correct structural skeleton and logs all operations.  When the
-// Google Calendar Go client library (google.golang.org/api/calendar/v3) is
-// added as a dependency, the TODO placeholders below should be replaced with
-// real API calls using the stored credentials.
-//
-// The adapter pattern ensures that swapping in the real implementation later
-// will not require changes to any domain or handler code — only this file
-// needs to be updated.
+// GoogleCalendarAdapter implements CalendarService for Google Calendar (stub).
 type GoogleCalendarAdapter struct {
-	// CalendarID is the Google Calendar identifier to which events are
-	// written (e.g. "primary" or a specific calendar ID string).
 	CalendarID string
 }
 
-// NewGoogleCalendarAdapter creates an adapter configured for the given
-// calendar.  Pass "primary" to target the authenticated user's default
-// calendar.
+// NewGoogleCalendarAdapter creates an adapter for the given calendar.
 func NewGoogleCalendarAdapter(calendarID string) CalendarService {
 	return &GoogleCalendarAdapter{CalendarID: calendarID}
 }
 
-// AddShiftToCalendar creates a Google Calendar event for the shift.
-//
-// TODO: Replace the stub with a real Google Calendar API insert call once
-// the google.golang.org/api/calendar/v3 dependency is available.
+// AddShiftToCalendar creates a Google Calendar event for the shift (stub).
 func (g *GoogleCalendarAdapter) AddShiftToCalendar(shift ReportableShift) error {
 	if shift == nil {
 		return fmt.Errorf("google calendar adapter: cannot add nil shift")
@@ -47,9 +28,7 @@ func (g *GoogleCalendarAdapter) AddShiftToCalendar(shift ReportableShift) error 
 	return nil
 }
 
-// RemoveShiftFromCalendar deletes the Google Calendar event for the shift.
-//
-// TODO: Replace the stub with a real Google Calendar API delete call.
+// RemoveShiftFromCalendar deletes the Google Calendar event for the shift (stub).
 func (g *GoogleCalendarAdapter) RemoveShiftFromCalendar(shift ReportableShift) error {
 	if shift == nil {
 		return fmt.Errorf("google calendar adapter: cannot remove nil shift")
@@ -61,9 +40,7 @@ func (g *GoogleCalendarAdapter) RemoveShiftFromCalendar(shift ReportableShift) e
 	return nil
 }
 
-// UpdateShiftInCalendar updates the Google Calendar event for the shift.
-//
-// TODO: Replace the stub with a real Google Calendar API update call.
+// UpdateShiftInCalendar updates the Google Calendar event for the shift (stub).
 func (g *GoogleCalendarAdapter) UpdateShiftInCalendar(shift ReportableShift) error {
 	if shift == nil {
 		return fmt.Errorf("google calendar adapter: cannot update nil shift")

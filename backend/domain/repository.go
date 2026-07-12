@@ -3,7 +3,6 @@ package domain
 import "my-backend/models"
 
 // UserStore defines all database operations for Users.
-// Phone is the unique identifier used throughout.
 type UserStore interface {
 	Create(user *models.User) error
 	GetByPhone(phone string) (*models.User, error)
@@ -20,9 +19,7 @@ type UserStore interface {
 type ShiftStore interface {
 	Create(shift *models.Shift) error
 	GetByAssignedTo(phone string) ([]models.Shift, error)
-	// GetByAssignedToInDateRange returns shifts for an employee that fall within
-	// [startDate, endDate]. endDate="" means "up to today" (open-ended).
-	// Dates are in DD/MM/YYYY format.
+	// GetByAssignedToInDateRange returns shifts for an employee within a date range.
 	GetByAssignedToInDateRange(phone string, startDate string, endDate string) ([]models.Shift, error)
 	Delete(id uint) error
 	GetActiveShift(phone string) (*models.Shift, error)
@@ -54,7 +51,6 @@ type EmployeeManagerHistoryStore interface {
 }
 
 // Registry is the central interface combining all stores.
-// Swap the underlying implementation without changing business logic.
 type Registry interface {
 	Users() UserStore
 	Shifts() ShiftStore

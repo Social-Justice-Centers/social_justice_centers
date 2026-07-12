@@ -2,30 +2,10 @@ package domain
 
 import "fmt"
 
-// XLSFormat is a concrete Strategy that implements ReportFormat by generating
-// a SpreadsheetML XML document (.xls).  This is the exact same format and
-// logic used by the legacy ExportMichpalHandler.
-//
-// Hebrew / RTL handling:
-//   - The XML declaration specifies encoding="utf-8", so all Hebrew characters
-//     are encoded natively in UTF-8 — no code-page conversion is needed.
-//   - The <WorksheetOptions> block includes <DisplayRightToLeft/>, which
-//     instructs Excel to render the sheet from right to left, matching the
-//     natural reading direction for Hebrew.
-//   - Hebrew string literals (column headers, company name) are embedded
-//     directly in the Go source as UTF-8 runes and appear verbatim in the
-//     output.
+// XLSFormat generates SpreadsheetML XML documents (.xls) for payroll export.
 type XLSFormat struct{}
 
-// Format produces a SpreadsheetML XML byte slice.  The output is identical in
-// structure to what ExportMichpalHandler generates.
-//
-// The generated workbook contains a single worksheet "Michpal Import" with:
-//   - Row 1: company header labels (חברה, שנת מס, חודש דיווח).
-//   - Row 2: company name, year, month values.
-//   - Row 3: spacer.
-//   - Row 4: column headers (תעודת זהות, שם עובד, שעות עבודה, נסיעות).
-//   - Rows 5+: one row per EmployeeReportRow.
+// Format produces a SpreadsheetML XML byte slice.
 func (x *XLSFormat) Format(rows []EmployeeReportRow, meta ReportMeta) ([]byte, error) {
 	// Build per-employee data rows.
 	rowsXml := ""

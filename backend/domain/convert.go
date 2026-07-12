@@ -2,11 +2,7 @@ package domain
 
 import "my-backend/models"
 
-// userToEmployable converts a legacy models.User into the appropriate
-// Employable implementation (Employee or Manager) based on the user's Role.
-//
-// This bridge function allows the new domain types to coexist with the
-// existing models.User without requiring handler changes.
+// userToEmployable converts a models.User into the appropriate Employable.
 func userToEmployable(u *models.User) Employable {
 	switch u.Role {
 	case models.RoleManager:
@@ -36,9 +32,7 @@ func userToEmployable(u *models.User) Employable {
 	}
 }
 
-// UserToEmployable is the exported version of userToEmployable, available to
-// other packages that need to bridge between models.User and the new domain
-// hierarchy.
+// UserToEmployable is the exported version of userToEmployable.
 func UserToEmployable(u *models.User) Employable {
 	return userToEmployable(u)
 }

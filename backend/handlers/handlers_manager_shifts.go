@@ -14,7 +14,7 @@ import (
 	"my-backend/utils"
 )
 
-// GetTeamShiftsHandler — Manager gets shifts for employees they manage, filtered by history.
+// GetTeamShiftsHandler — Manager gets team shifts
 func GetTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		managerPhone := c.GetString("phone")
@@ -67,7 +67,7 @@ func GetTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// AssignShiftHandler — Manager assigns a future shift to an employee
+// AssignShiftHandler — Manager assigns a future shift
 func AssignShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		managerPhone := c.GetString("phone")
@@ -155,7 +155,7 @@ func AssignShiftHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// ApproveManagerShiftHandler — Manager approves a pending shift
+// ApproveManagerShiftHandler — Manager approves a shift
 func ApproveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")
@@ -178,7 +178,7 @@ func ApproveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// (Optional) Check history records if manager manages this employee
+		// Check history records
 		historyRecords, _ := db.EmployeeManagerHistories().GetHistoryByManager(manager.ID)
 		isManaged := false
 		employee, _ := db.Users().GetByPhone(shift.AssignedTo)
@@ -212,7 +212,7 @@ func ApproveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// RejectManagerShiftHandler — Manager rejects a pending/reported shift
+// RejectManagerShiftHandler — Manager rejects a shift
 func RejectManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")

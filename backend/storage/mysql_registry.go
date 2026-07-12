@@ -7,36 +7,29 @@ import (
 	"gorm.io/gorm"
 )
 
-// mysqlRegistry implements domain.Registry and domain.DB backed by a MySQL
-// database via GORM.
+// mysqlRegistry implements domain.Registry and domain.DB backed by MySQL.
 type mysqlRegistry struct {
 	db *gorm.DB
 }
 
-// NewMySQLRegistry creates a new Registry backed by the provided GORM DB
-// connected to a MySQL instance.
+// NewMySQLRegistry creates a new Registry backed by the provided GORM DB.
 func NewMySQLRegistry(db *gorm.DB) domain.DB {
 	return &mysqlRegistry{db: db}
 }
 
-// ---------------------------------------------------------------------------
-// domain.DB implementation
-// ---------------------------------------------------------------------------
+
 
 // SaveToDB persists a Saveable entity using GORM's Save (upsert) semantics.
 func (r *mysqlRegistry) SaveToDB(s domain.Saveable) error {
 	return r.db.Save(s).Error
 }
 
-// Registry returns the mysqlRegistry itself, which also satisfies
-// domain.Registry.
+// Registry returns the mysqlRegistry itself.
 func (r *mysqlRegistry) Registry() domain.Registry {
 	return r
 }
 
-// ---------------------------------------------------------------------------
-// domain.Registry implementation
-// ---------------------------------------------------------------------------
+
 
 func (r *mysqlRegistry) Users() domain.UserStore { return &userStore{db: r.db} }
 func (r *mysqlRegistry) Shifts() domain.ShiftStore { return &shiftStore{db: r.db} }
@@ -47,9 +40,7 @@ func (r *mysqlRegistry) EmployeeManagerHistories() domain.EmployeeManagerHistory
 	return &employeeManagerHistoryStore{db: r.db}
 }
 
-// =============================================================================
-// User Store
-// =============================================================================
+
 
 type userStore struct{ db *gorm.DB }
 
@@ -102,9 +93,7 @@ func (s *userStore) Delete(id uint) error {
 	return s.db.Delete(&models.User{}, id).Error
 }
 
-// =============================================================================
-// Shift Store
-// =============================================================================
+
 
 type shiftStore struct{ db *gorm.DB }
 
@@ -118,12 +107,7 @@ func (s *shiftStore) GetByAssignedTo(phone string) ([]models.Shift, error) {
 	return shifts, err
 }
 
-// GetByAssignedToInDateRange returns shifts for a given employee whose date
-// falls within [startDate, endDate] (DD/MM/YYYY).  When endDate is "", the
-// range is open-ended (startDate onward, i.e. no upper bound).
-//
-// Dates are stored as DD/MM/YYYY text, so they are converted to YYYY-MM-DD
-// for reliable lexicographic comparison using SQL substr helpers.
+// GetByAssignedToInDateRange returns shifts for an employee within a date range.
 func (s *shiftStore) GetByAssignedToInDateRange(phone, startDate, endDate string) ([]models.Shift, error) {
 	var shifts []models.Shift
 
@@ -171,9 +155,7 @@ func (s *shiftStore) GetAllPlannedShifts() ([]models.Shift, error) {
 }
 
 
-// =============================================================================
-// Driving Report Store
-// =============================================================================
+
 
 type drivingReportStore struct{ db *gorm.DB }
 
@@ -214,9 +196,7 @@ func (s *drivingReportStore) Update(report *models.DrivingReport) error {
 	return s.db.Save(report).Error
 }
 
-// =============================================================================
-// Employee Manager History Store
-// =============================================================================
+
 
 type employeeManagerHistoryStore struct{ db *gorm.DB }
 

@@ -120,7 +120,7 @@ func MeHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// Phase 1 Migration: Convert to Domain model, then to DTO
+		// Convert to Domain model, then to DTO
 		employable := domain.UserToEmployable(user)
 		userDTO := EmployableToDTO(employable)
 

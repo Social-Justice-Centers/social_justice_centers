@@ -32,7 +32,7 @@ func GetMyShiftsHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// GetCurrentShiftHandler — Returns the active, open shift (missing EndTime) for the logged-in user
+// GetCurrentShiftHandler — Returns the active, open shift for the user
 func GetCurrentShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		phone := c.GetString("phone")
@@ -84,7 +84,7 @@ func ClockInHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// ClockOutHandler — Closes the active shift for the current user
+// ClockOutHandler — Closes the active shift
 func ClockOutHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		phone := c.GetString("phone")
@@ -134,7 +134,7 @@ func ClockOutHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// ReportShiftHandler — employee self-reports their own worked hours
+// ReportShiftHandler — employee self-reports worked hours
 func ReportShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req models.Shift
@@ -250,7 +250,7 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 
 // DeleteShiftHandler — delete a shift (owner or manager)
 func DeleteShiftHandler(db domain.Registry) gin.HandlerFunc {
-	// Only the shift owner (employee assigned to it) or a manager is authorized to delete shifts.
+	// Only owner or manager is authorized
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 		if err != nil {
@@ -364,7 +364,7 @@ func validateShiftTimes(date string, startTime string, endTime string, workDurat
 		return fmt.Errorf("שנת התאריך חייבת להיות בין 2000 ל-2100")
 	}
 
-	// Skip time validations if this is a flexible shift day option report (duration is set)
+	// Skip time validations for flexible shifts
 	if workDuration != "" {
 		return nil
 	}

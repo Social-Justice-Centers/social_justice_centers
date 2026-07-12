@@ -30,7 +30,7 @@ func CreateUserHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// Hash the plain-text password before storing using utils.HashPassword
+		// Hash the plain-text password
 		hashed, err := utils.HashPassword(req.Password)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בהצפנת הסיסמה"})
@@ -71,7 +71,7 @@ func CreateUserHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// GetTeamHandler — manager gets only the employees they directly manage
+// GetTeamHandler — manager gets employees they manage
 func GetTeamHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		managerPhone := c.GetString("phone")
@@ -86,7 +86,7 @@ func GetTeamHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// Phase 1 Migration: Convert to Domain models, then to DTOs
+		// Convert to Domain models, then to DTOs
 		var teamDTOs []UserDTO
 		for _, u := range users {
 			emp := domain.UserToEmployable(&u)
@@ -98,7 +98,7 @@ func GetTeamHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// UpdateEmployeeHandler — Manager updates their employee's details
+// UpdateEmployeeHandler — Manager updates an employee's details
 func UpdateEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")
@@ -195,7 +195,7 @@ func DeleteEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// Close any active manager assignments in history by setting end_date to now
+		// Close active manager assignments in history
 		if err := db.EmployeeManagerHistories().CloseActiveRecord(userID, utils.Now().Format("02/01/2006")); err != nil {
 			log.Printf("ERROR: Failed to close active manager history on deletion: %v\n", err)
 		}

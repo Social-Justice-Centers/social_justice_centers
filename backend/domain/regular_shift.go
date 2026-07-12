@@ -5,12 +5,7 @@ import (
 	"time"
 )
 
-// RegularShift represents a standard fixed-hours shift.  It is designed for
-// employees working the "regular" (IsRegularModel) schedule — typically
-// fixed start/end times within the same day.
-//
-// This struct coexists alongside models.Shift.  HTTP handlers continue to
-// use models.Shift directly until the full migration is performed.
+// RegularShift represents a standard fixed-hours shift.
 type RegularShift struct {
 	ID           uint   // Database primary key.
 	AssignedTo   string // Phone of the employee.
@@ -24,9 +19,7 @@ type RegularShift struct {
 	ReminderSent bool
 }
 
-// ---------------------------------------------------------------------------
-// ReportableShift implementation
-// ---------------------------------------------------------------------------
+
 
 func (s *RegularShift) ShiftDate() string       { return s.Date }
 func (s *RegularShift) ShiftType() string        { return s.Type }
@@ -41,9 +34,7 @@ func (s *RegularShift) GetID() uint              { return s.ID }
 func (s *RegularShift) GetWorkDuration() string  { return "" } // RegularShift does not persist WorkDuration string
 func (s *RegularShift) GetReminderSent() bool    { return s.ReminderSent }
 
-// CalculateDuration computes the elapsed work time between StartTime and
-// EndTime using the HH:MM format.  Returns zero if the shift has not ended
-// or if times cannot be parsed.
+// CalculateDuration computes the elapsed work time between StartTime and EndTime.
 func (s *RegularShift) CalculateDuration() time.Duration {
 	if s.StartTime == "" || s.EndTime == "" {
 		return 0
@@ -61,9 +52,7 @@ func (s *RegularShift) CalculateDuration() time.Duration {
 	return d
 }
 
-// Validate enforces RegularShift business rules:
-//   - AssignedTo, AssignedBy, Date, and StartTime must be non-empty.
-//   - Type must be either "planned" or "reported".
+// Validate enforces RegularShift business rules.
 func (s *RegularShift) Validate() error {
 	if s.AssignedTo == "" {
 		return fmt.Errorf("regular shift: AssignedTo is required")
@@ -83,17 +72,9 @@ func (s *RegularShift) Validate() error {
 	return nil
 }
 
-// ---------------------------------------------------------------------------
-// Saveable implementation
-// ---------------------------------------------------------------------------
-
-// TableName satisfies domain.Saveable and maps to the same table used by
-// models.Shift.
 func (s *RegularShift) TableName() string { return "shifts" }
 
-// ---------------------------------------------------------------------------
-// Stringer (debugging / logging)
-// ---------------------------------------------------------------------------
+
 
 func (s *RegularShift) String() string {
 	return fmt.Sprintf("RegularShift{ID:%d, Date:%s, %s→%s, AssignedTo:%s}",

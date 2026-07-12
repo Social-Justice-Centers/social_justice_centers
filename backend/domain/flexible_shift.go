@@ -5,13 +5,7 @@ import (
 	"time"
 )
 
-// FlexibleShift represents a shift for employees on the "flexible"
-// (IsFlexibleModel) schedule.  Unlike RegularShift, a flexible shift may have
-// a looser time structure — the employee clocks in and out freely, and the
-// total work duration is computed from those timestamps.
-//
-// This struct coexists alongside models.Shift.  HTTP handlers continue to
-// use models.Shift directly until the full migration is performed.
+// FlexibleShift represents a shift for employees on the flexible schedule.
 type FlexibleShift struct {
 	ID           uint   // Database primary key.
 	AssignedTo   string // Phone of the employee.
@@ -26,9 +20,7 @@ type FlexibleShift struct {
 	ReminderSent bool
 }
 
-// ---------------------------------------------------------------------------
-// ReportableShift implementation
-// ---------------------------------------------------------------------------
+
 
 func (s *FlexibleShift) ShiftDate() string       { return s.Date }
 func (s *FlexibleShift) ShiftType() string        { return s.Type }
@@ -43,11 +35,8 @@ func (s *FlexibleShift) GetID() uint              { return s.ID }
 func (s *FlexibleShift) GetWorkDuration() string  { return s.WorkDuration }
 func (s *FlexibleShift) GetReminderSent() bool    { return s.ReminderSent }
 
-// CalculateDuration computes the elapsed work time.  If a persisted
-// WorkDuration is available it is preferred; otherwise the duration is
-// derived from StartTime and EndTime.
+// CalculateDuration computes the elapsed work time.
 func (s *FlexibleShift) CalculateDuration() time.Duration {
-	// Prefer a pre-computed, persisted duration if present.
 	if s.WorkDuration != "" {
 		if d, err := time.ParseDuration(s.WorkDuration); err == nil {
 			return d
@@ -63,7 +52,6 @@ func (s *FlexibleShift) CalculateDuration() time.Duration {
 		}
 	}
 
-	// Fall back to computing from start/end.
 	if s.StartTime == "" || s.EndTime == "" {
 		return 0
 	}
@@ -79,11 +67,7 @@ func (s *FlexibleShift) CalculateDuration() time.Duration {
 	return d
 }
 
-// Validate enforces FlexibleShift business rules:
-//   - AssignedTo, AssignedBy, and Date must be non-empty.
-//   - Type must be either "planned" or "reported".
-//   - StartTime is NOT required at creation for flexible shifts (a planned
-//     flexible shift may omit it).
+// Validate enforces FlexibleShift business rules.
 func (s *FlexibleShift) Validate() error {
 	if s.AssignedTo == "" {
 		return fmt.Errorf("flexible shift: AssignedTo is required")
@@ -100,17 +84,9 @@ func (s *FlexibleShift) Validate() error {
 	return nil
 }
 
-// ---------------------------------------------------------------------------
-// Saveable implementation
-// ---------------------------------------------------------------------------
-
-// TableName satisfies domain.Saveable and maps to the same table used by
-// models.Shift.
 func (s *FlexibleShift) TableName() string { return "shifts" }
 
-// ---------------------------------------------------------------------------
-// Stringer (debugging / logging)
-// ---------------------------------------------------------------------------
+
 
 func (s *FlexibleShift) String() string {
 	return fmt.Sprintf("FlexibleShift{ID:%d, Date:%s, %s→%s, Duration:%s, AssignedTo:%s}",

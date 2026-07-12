@@ -6,9 +6,7 @@ import (
 )
 
 // UserDTO is the Data Transfer Object representing a User.
-// This struct exactly matches the JSON shape expected by the frontend,
-// acting as an anti-corruption layer between the new domain architecture
-// and the legacy HTTP contracts.
+// Matches the JSON shape expected by the frontend.
 type UserDTO struct {
 	ID              uint        `json:"ID"`
 	FullName        string      `json:"fullName"`
@@ -22,8 +20,7 @@ type UserDTO struct {
 	IsRegularModel  bool        `json:"isRegularModel"`
 }
 
-// EmployableToDTO converts the new domain.Employable interface into a UserDTO
-// for JSON serialization back to the frontend.
+// EmployableToDTO converts the Employable interface into a UserDTO.
 func EmployableToDTO(emp domain.Employable) UserDTO {
 	dto := UserDTO{
 		ID:            emp.GetID(),
@@ -33,8 +30,7 @@ func EmployableToDTO(emp domain.Employable) UserDTO {
 		DirectManager: emp.GetDirectManagerID(),
 	}
 
-	// Because Employable is an interface that omits certain non-essential fields,
-	// we type-assert to extract the rest of the fields needed for the frontend.
+	// Extract non-essential fields not in the Employable interface.
 	switch e := emp.(type) {
 	case *domain.Employee:
 		dto.Username = e.Username
@@ -54,7 +50,6 @@ func EmployableToDTO(emp domain.Employable) UserDTO {
 }
 
 // ShiftDTO is the Data Transfer Object representing a Shift.
-// This struct exactly matches the JSON shape expected by the frontend from models.Shift.
 type ShiftDTO struct {
 	ID           uint   `json:"ID"`
 	AssignedTo   string `json:"assignedTo"`
@@ -69,8 +64,7 @@ type ShiftDTO struct {
 	ReminderSent bool   `json:"reminderSent"`
 }
 
-// ReportableShiftToDTO converts the new domain.ReportableShift interface into a ShiftDTO
-// for JSON serialization back to the frontend.
+// ReportableShiftToDTO converts the domain.ReportableShift into a ShiftDTO.
 func ReportableShiftToDTO(shift domain.ReportableShift) ShiftDTO {
 	return ShiftDTO{
 		ID:           shift.GetID(),
@@ -87,9 +81,7 @@ func ReportableShiftToDTO(shift domain.ReportableShift) ShiftDTO {
 	}
 }
 
-// ModelShiftToDomain converts a legacy models.Shift into a domain.ReportableShift
-// using the domain.ShiftFactory. It determines the correct concrete type by
-// inspecting the assigned user's model configuration.
+// ModelShiftToDomain converts a models.Shift into a domain.ReportableShift.
 func ModelShiftToDomain(db domain.Registry, shift models.Shift) domain.ReportableShift {
 	shiftType := "regular"
 	user, err := db.Users().GetByPhone(shift.AssignedTo)
@@ -112,18 +104,18 @@ func ModelShiftToDomain(db domain.Registry, shift models.Shift) domain.Reportabl
 	}
 
 	factory := domain.NewDefaultShiftFactory()
-	// Ignore error here because the factory handles generic maps well
+	// Ignore factory error for generic maps
 	reportable, _ := factory.CreateShift(shiftType, data)
 	return reportable
 }
 
-// ValidateDomainShift uses the domain layer to validate a models.Shift.
+// ValidateDomainShift validates a models.Shift via the domain layer.
 func ValidateDomainShift(db domain.Registry, shift models.Shift) error {
 	domainShift := ModelShiftToDomain(db, shift)
 	return domainShift.Validate()
 }
 
-// SyncDomainShift pushes the shift to the calendar adapter via the Employable interface.
+// SyncDomainShift pushes the shift to the calendar adapter.
 func SyncDomainShift(db domain.Registry, shift models.Shift) {
 	user, err := db.Users().GetByPhone(shift.AssignedTo)
 	if err != nil {
