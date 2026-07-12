@@ -119,6 +119,11 @@ func MeHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "משתמש לא נמצא"})
 			return
 		}
-		c.JSON(http.StatusOK, user)
+
+		// Convert to Domain model, then to DTO
+		employable := domain.UserToEmployable(user)
+		userDTO := EmployableToDTO(employable)
+
+		c.JSON(http.StatusOK, userDTO)
 	}
 }

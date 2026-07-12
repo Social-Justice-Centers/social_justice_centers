@@ -14,7 +14,7 @@ import (
 	"my-backend/utils"
 )
 
-// GetTeamShiftsHandler — Manager gets shifts for employees they manage, filtered by history.
+// GetTeamShiftsHandler — Manager gets team shifts
 func GetTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		managerPhone := c.GetString("phone")
@@ -32,7 +32,7 @@ func GetTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
 		}
 
 		type shiftWithUser struct {
-			models.Shift
+			ShiftDTO
 			EmployeeName string `json:"employeeName"`
 		}
 		var result []shiftWithUser
@@ -54,8 +54,10 @@ func GetTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
 			}
 
 			for _, s := range shifts {
+				domainShift := ModelShiftToDomain(db, s)
+				dto := ReportableShiftToDTO(domainShift)
 				result = append(result, shiftWithUser{
-					Shift:        s,
+					ShiftDTO:     dto,
 					EmployeeName: employee.FullName,
 				})
 			}
@@ -65,7 +67,7 @@ func GetTeamShiftsHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// AssignShiftHandler — Manager assigns a future shift to an employee
+// AssignShiftHandler — Manager assigns a future shift
 func AssignShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		managerPhone := c.GetString("phone")
@@ -108,7 +110,15 @@ func AssignShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// Validate date and times
+		req.AssignedBy = managerPhone
+		req.Type = "planned"
+		req.Status = "approved"
+
+		if err := ValidateDomainShift(db, req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, req.WorkDuration); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -122,19 +132,30 @@ func AssignShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		req.AssignedBy = managerPhone
-		req.Type = "planned"
-
 		if err := db.Shifts().Create(&req); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביצירת המשמרת"})
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"message": "משמרת שובצה בהצלחה", "shift": req})
+		SyncDomainShift(db, req)
+
+		// Define the exact struct expected by the frontend table view
+		type shiftWithUser struct {
+			ShiftDTO
+			EmployeeName string `json:"employeeName"`
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "משמרת שובצה בהצלחה",
+			"shift": shiftWithUser{
+				ShiftDTO:     ReportableShiftToDTO(ModelShiftToDomain(db, req)),
+				EmployeeName: employee.FullName,
+			},
+		})
 	}
 }
 
-// ApproveManagerShiftHandler — Manager approves a pending shift
+// ApproveManagerShiftHandler — Manager approves a shift
 func ApproveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")
@@ -157,7 +178,7 @@ func ApproveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// (Optional) Check history records if manager manages this employee
+		// Check history records
 		historyRecords, _ := db.EmployeeManagerHistories().GetHistoryByManager(manager.ID)
 		isManaged := false
 		employee, _ := db.Users().GetByPhone(shift.AssignedTo)
@@ -173,7 +194,15 @@ func ApproveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		shift.Status = "approved"
+		managerDomain := domain.UserToEmployable(manager).(*domain.Manager)
+		domainShift := ModelShiftToDomain(db, *shift)
+
+		if err := managerDomain.ApproveShift(domainShift, true); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה פנימית במודל העסקי"})
+			return
+		}
+
+		shift.Status = domainShift.ShiftStatus()
 		if err := db.Shifts().Update(shift); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה באישור המשמרת"})
 			return
@@ -183,7 +212,7 @@ func ApproveManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 	}
 }
 
-// RejectManagerShiftHandler — Manager rejects a pending/reported shift
+// RejectManagerShiftHandler — Manager rejects a shift
 func RejectManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")
@@ -226,7 +255,15 @@ func RejectManagerShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		shift.Status = "rejected"
+		managerDomain := domain.UserToEmployable(manager).(*domain.Manager)
+		domainShift := ModelShiftToDomain(db, *shift)
+
+		if err := managerDomain.ApproveShift(domainShift, false); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה פנימית במודל העסקי"})
+			return
+		}
+
+		shift.Status = domainShift.ShiftStatus()
 		if err := db.Shifts().Update(shift); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בדחיית המשמרת"})
 			return

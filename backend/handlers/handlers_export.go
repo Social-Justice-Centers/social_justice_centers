@@ -30,26 +30,21 @@ func ExportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 		}
 
 		managerPhone := c.GetString("phone")
-		manager, err := db.Users().GetByPhone(managerPhone)
+		managerUser, err := db.Users().GetByPhone(managerPhone)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת פרטי המנהל"})
 			return
 		}
+		
+		managerEmp := domain.UserToEmployable(managerUser)
 
-		teamMembers, err := db.Users().GetByDirectManagerID(manager.ID)
+		teamMembers, err := db.Users().GetByDirectManagerID(managerUser.ID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת רשימת העובדים"})
 			return
 		}
 
-		type employeeReport struct {
-			Phone       string
-			FullName    string
-			TotalHours  float64
-			TotalTravel float64
-		}
-
-		var reports []employeeReport
+		var reports []domain.EmployeeReportRow
 
 		for _, emp := range teamMembers {
 			// 1. Calculate total shifts hours for target month/year
@@ -96,7 +91,7 @@ func ExportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 				}
 			}
 
-			reports = append(reports, employeeReport{
+			reports = append(reports, domain.EmployeeReportRow{
 				Phone:       emp.Phone,
 				FullName:    emp.FullName,
 				TotalHours:  totalHours,
@@ -104,59 +99,24 @@ func ExportMichpalHandler(db domain.Registry) gin.HandlerFunc {
 			})
 		}
 
-		// Generate SpreadsheetML XML
-		rowsXml := ""
-		for _, r := range reports {
-			rowsXml += fmt.Sprintf(`   <Row ss:Height="20">
-    <Cell><Data ss:Type="String">%s</Data></Cell>
-    <Cell><Data ss:Type="String">%s</Data></Cell>
-    <Cell><Data ss:Type="Number">%.2f</Data></Cell>
-    <Cell><Data ss:Type="Number">%.2f</Data></Cell>
-    </Row>
-`, r.Phone, r.FullName, r.TotalHours, r.TotalTravel)
+		createdTime := now.Format("2006-01-02T15:04:05Z")
+		meta := domain.ReportMeta{
+			CompanyName: "מרכזים לצדק חברתי",
+			Year:        year,
+			Month:       month,
+			CreatedAt:   createdTime,
 		}
 
-		createdTime := now.Format("2006-01-02T15:04:05Z")
+		maker := domain.NewReportMaker(&domain.XLSFormat{})
+		reportBytes, err := managerEmp.ExportShifts(maker, reports, meta)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה ביצירת הדוח"})
+			return
+		}
 
-		xmlContent := fmt.Sprintf(`<?xml version="1.0" encoding="utf-8"?>
-<?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:o="urn:schemas-microsoft-com:office:office"
- xmlns:x="urn:schemas-microsoft-com:office:excel"
- xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
- xmlns:html="http://www.w3.org/TR/REC-html40">
- <DocumentProperties xmlns="urn:schemas-microsoft-com:office:office">
-  <Author>Social Justice Centers</Author>
-  <Created>%s</Created>
- </DocumentProperties>
- <Worksheet ss:Name="Michpal Import">
-  <Table ss:ExpandedColumnCount="4">
-   <Row ss:Height="20">
-    <Cell><Data ss:Type="String">חברה</Data></Cell>
-    <Cell><Data ss:Type="String">שנת מס</Data></Cell>
-    <Cell><Data ss:Type="String">חודש דיווח</Data></Cell>
-   </Row>
-   <Row ss:Height="20">
-    <Cell><Data ss:Type="String">מרכזים לצדק חברתי</Data></Cell>
-    <Cell><Data ss:Type="Number">%s</Data></Cell>
-    <Cell><Data ss:Type="String">%s</Data></Cell>
-   </Row>
-   <Row ss:Height="10"/>
-   <Row ss:Height="20">
-    <Cell><Data ss:Type="String">תעודת זהות</Data></Cell>
-    <Cell><Data ss:Type="String">שם עובד</Data></Cell>
-    <Cell><Data ss:Type="String">שעות עבודה</Data></Cell>
-    <Cell><Data ss:Type="String">נסיעות</Data></Cell>
-   </Row>
-%s  </Table>
-  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">
-   <DisplayRightToLeft/>
-  </WorksheetOptions>
- </Worksheet>
-</Workbook>`, createdTime, year, month, rowsXml)
-
+		// Preserve exact headers for the frontend download
 		c.Header("Content-Type", "application/vnd.ms-excel; charset=utf-8")
 		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=michpal_export_%s_%s.xls", year, month))
-		c.String(http.StatusOK, xmlContent)
+		c.Data(http.StatusOK, "application/vnd.ms-excel; charset=utf-8", reportBytes)
 	}
 }

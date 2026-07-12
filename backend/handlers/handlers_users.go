@@ -30,7 +30,7 @@ func CreateUserHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// Hash the plain-text password before storing using utils.HashPassword
+		// Hash the plain-text password
 		hashed, err := utils.HashPassword(req.Password)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בהצפנת הסיסמה"})
@@ -63,11 +63,15 @@ func CreateUserHandler(db domain.Registry) gin.HandlerFunc {
 			log.Printf("ERROR: Failed to create employee manager history record: %v\n", err)
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"message": "משתמש נוצר בהצלחה"})
+		dto := EmployableToDTO(domain.UserToEmployable(&req))
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "משתמש נוצר בהצלחה",
+			"user":    dto,
+		})
 	}
 }
 
-// GetTeamHandler — manager gets only the employees they directly manage
+// GetTeamHandler — manager gets employees they manage
 func GetTeamHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		managerPhone := c.GetString("phone")
@@ -81,14 +85,20 @@ func GetTeamHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת רשימת העובדים"})
 			return
 		}
-		for i := range users {
-			users[i].Password = ""
+
+		// Convert to Domain models, then to DTOs
+		var teamDTOs []UserDTO
+		for _, u := range users {
+			emp := domain.UserToEmployable(&u)
+			dto := EmployableToDTO(emp)
+			teamDTOs = append(teamDTOs, dto)
 		}
-		c.JSON(http.StatusOK, users)
+
+		c.JSON(http.StatusOK, teamDTOs)
 	}
 }
 
-// UpdateEmployeeHandler — Manager updates their employee's details
+// UpdateEmployeeHandler — Manager updates an employee's details
 func UpdateEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")
@@ -148,7 +158,11 @@ func UpdateEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "פרטי העובד עודכנו בהצלחה"})
+		dto := EmployableToDTO(domain.UserToEmployable(targetUser))
+		c.JSON(http.StatusOK, gin.H{
+			"message": "פרטי העובד עודכנו בהצלחה",
+			"user":    dto,
+		})
 	}
 }
 
@@ -181,7 +195,7 @@ func DeleteEmployeeHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		// Close any active manager assignments in history by setting end_date to now
+		// Close active manager assignments in history
 		if err := db.EmployeeManagerHistories().CloseActiveRecord(userID, utils.Now().Format("02/01/2006")); err != nil {
 			log.Printf("ERROR: Failed to close active manager history on deletion: %v\n", err)
 		}

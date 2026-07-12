@@ -23,11 +23,16 @@ func GetMyShiftsHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בשליפת המשמרות"})
 			return
 		}
-		c.JSON(http.StatusOK, shifts)
+		var dtos []ShiftDTO
+		for _, s := range shifts {
+			domainShift := ModelShiftToDomain(db, s)
+			dtos = append(dtos, ReportableShiftToDTO(domainShift))
+		}
+		c.JSON(http.StatusOK, dtos)
 	}
 }
 
-// GetCurrentShiftHandler — Returns the active, open shift (missing EndTime) for the logged-in user
+// GetCurrentShiftHandler — Returns the active, open shift for the user
 func GetCurrentShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		phone := c.GetString("phone")
@@ -36,7 +41,8 @@ func GetCurrentShiftHandler(db domain.Registry) gin.HandlerFunc {
 			c.JSON(http.StatusNotFound, gin.H{"error": "אין משמרת פעילה"})
 			return
 		}
-		c.JSON(http.StatusOK, activeShift)
+		domainShift := ModelShiftToDomain(db, *activeShift)
+		c.JSON(http.StatusOK, ReportableShiftToDTO(domainShift))
 	}
 }
 
@@ -63,15 +69,22 @@ func ClockInHandler(db domain.Registry) gin.HandlerFunc {
 			Status:     checkShiftApproval(db, phone, now.Format("02/01/2006"), now.Format("15:04"), "", "", false),
 		}
 
+		if err := ValidateDomainShift(db, shift); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
 		if err := db.Shifts().Create(&shift); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "שגיאה בכנסה למשמרת"})
 			return
 		}
-		c.JSON(http.StatusCreated, shift)
+
+		SyncDomainShift(db, shift)
+		c.JSON(http.StatusCreated, ReportableShiftToDTO(ModelShiftToDomain(db, shift)))
 	}
 }
 
-// ClockOutHandler — Closes the active shift for the current user
+// ClockOutHandler — Closes the active shift
 func ClockOutHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		phone := c.GetString("phone")
@@ -96,13 +109,14 @@ func ClockOutHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(activeShift.Date, activeShift.StartTime, req.EndTime, activeShift.WorkDuration); err != nil {
+		activeShift.EndTime = req.EndTime
+		activeShift.Notes = req.Notes
+
+		if err := ValidateDomainShift(db, *activeShift); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		activeShift.EndTime = req.EndTime
-		activeShift.Notes = req.Notes
 		activeShift.Status = checkShiftApproval(db, phone, activeShift.Date, activeShift.StartTime, req.EndTime, req.Notes, false)
 
 		if err := db.Shifts().Update(activeShift); err != nil {
@@ -110,13 +124,17 @@ func ClockOutHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		SyncDomainShift(db, *activeShift)
 		consumePlannedShift(db, phone, activeShift.Date)
 
-		c.JSON(http.StatusOK, gin.H{"message": "יציאה ממשמרת עודכנה בהצלחה"})
+		c.JSON(http.StatusOK, gin.H{
+			"message": "יציאה ממשמרת עודכנה בהצלחה",
+			"shift":   ReportableShiftToDTO(ModelShiftToDomain(db, *activeShift)),
+		})
 	}
 }
 
-// ReportShiftHandler — employee self-reports their own worked hours
+// ReportShiftHandler — employee self-reports worked hours
 func ReportShiftHandler(db domain.Registry) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req models.Shift
@@ -125,16 +143,16 @@ func ReportShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, req.WorkDuration); err != nil {
+		phone := c.GetString("phone")
+		req.AssignedTo = phone
+		req.AssignedBy = phone
+		req.Type = "reported"
+
+		if err := ValidateDomainShift(db, req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		phone := c.GetString("phone")
-
-		req.AssignedTo = phone
-		req.AssignedBy = phone
-		req.Type = "reported"
 		req.Status = checkShiftApproval(db, phone, req.Date, req.StartTime, req.EndTime, req.Notes, true)
 
 		if err := db.Shifts().Create(&req); err != nil {
@@ -142,9 +160,13 @@ func ReportShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
+		SyncDomainShift(db, req)
 		consumePlannedShift(db, phone, req.Date)
 
-		c.JSON(http.StatusCreated, gin.H{"message": "דיווח המשמרת נשמר בהצלחה"})
+		c.JSON(http.StatusCreated, gin.H{
+			"message": "דיווח המשמרת נשמר בהצלחה",
+			"shift":   ReportableShiftToDTO(ModelShiftToDomain(db, req)),
+		})
 	}
 }
 
@@ -188,7 +210,12 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, shift.WorkDuration); err != nil {
+		if !isManager && shift.Type == "planned" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "עובדים אינם רשאים לערוך משמרות מתוכננות"})
+			return
+		}
+
+		if err := validateShiftTimes(req.Date, req.StartTime, req.EndTime, ""); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
@@ -197,6 +224,11 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 		shift.StartTime = req.StartTime
 		shift.EndTime = req.EndTime
 		shift.Notes = req.Notes
+
+		if err := ValidateDomainShift(db, *shift); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
 		if !isManager {
 			shift.Status = "pending"
@@ -207,12 +239,18 @@ func UpdateShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "משמרת עודכנה בהצלחה"})
+		SyncDomainShift(db, *shift)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "משמרת עודכנה בהצלחה",
+			"shift":   ReportableShiftToDTO(ModelShiftToDomain(db, *shift)),
+		})
 	}
 }
 
 // DeleteShiftHandler — delete a shift (owner or manager)
 func DeleteShiftHandler(db domain.Registry) gin.HandlerFunc {
+	// Only owner or manager is authorized
 	return func(c *gin.Context) {
 		id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 		if err != nil {
@@ -233,10 +271,10 @@ func DeleteShiftHandler(db domain.Registry) gin.HandlerFunc {
 			return
 		}
 
-		isOwner := shift.AssignedTo == phone
 		isManager := user.Role == models.RoleManager
-		if !isOwner && !isManager {
-			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה למחוק משמרת זו"})
+		isCreator := shift.AssignedBy == phone
+		if !isManager || !isCreator {
+			c.JSON(http.StatusForbidden, gin.H{"error": "אין הרשאה למחוק משמרת זו (רק מנהל ששיבץ את המשמרת רשאי למחוק אותה)"})
 			return
 		}
 
@@ -326,7 +364,7 @@ func validateShiftTimes(date string, startTime string, endTime string, workDurat
 		return fmt.Errorf("שנת התאריך חייבת להיות בין 2000 ל-2100")
 	}
 
-	// Skip time validations if this is a flexible shift day option report (duration is set)
+	// Skip time validations for flexible shifts
 	if workDuration != "" {
 		return nil
 	}
